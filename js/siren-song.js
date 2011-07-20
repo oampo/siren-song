@@ -1,7 +1,21 @@
+// Override for speed
+PhiloGL.O3D.Model.prototype.update = function() {
+    var matrix = this.matrix,
+        pos = this.position,
+        rot = this.rotation,
+        scale = this.scale;
+   
+    PhiloGL.Mat4.id(matrix);
+    PhiloGL.Mat4.$translate(matrix, pos.x, pos.y, pos.z);
+    PhiloGL.Mat4.$rotateXYZ(matrix, rot.x, rot.y, rot.z);
+    PhiloGL.Mat4.$scale(matrix, scale.x, scale.y, scale.z);
+};
+
+
 function webGLStart() {
     PhiloGL('siren-song', {
-        textures: {
-            src: ['img/good-guy.png']
+        context: {
+            antialias: false
         },
         onError: function() {
             alert("There was an error creating the app.");
@@ -14,7 +28,11 @@ function webGLStart() {
             app.width = app.canvas.width;
             app.height = app.canvas.height;
 
+            app.frameCount = 0;
+
             gl.clearColor(0, 0, 0, 1);
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
             gl.viewport(0, 0, app.width, app.height);
             app.camera.projection.ortho(-app.width/2,
@@ -25,7 +43,20 @@ function webGLStart() {
 
             app.keys = new Array(512);
 
+            app.audiolet = new Audiolet();
+            app.scale = new MajorScale();
+            app.rootFrequency = 16.352;
+            app.delay = new FeedbackDelay(app.audiolet, 0.9, 0.2);
+            app.reverb = new Reverb(app.audiolet, 0.9, 1, 0.5);
+            app.crusher = new BitCrusher(app.audiolet, 8);
+            app.delay.connect(app.reverb);
+            app.reverb.connect(app.crusher);
+            app.crusher.connect(app.audiolet.output);
+
             app.particleSystem = new ParticleSystem(0, 0);
+            app.particleSystem.integrator = new OptimisedIntegrator(app.particleSystem);
+
+            app.cloud = new Cloud(app);
 
             app.level = new Level(app);
 
@@ -33,20 +64,28 @@ function webGLStart() {
 
             app.sirens = [];
 
-            app.cloud = new Cloud(app);
+            app.score = new Score(app);
+
+            app.ui = new UI(app);
+
+            app.paused = true;
+            draw();
+            app.ui.startCountdown();
 
             function handleKeys() {
-                if (app.keys[37]) {  // Left
-                    app.goodGuy.velocity.x -= 0.2;
+                if (app.keys[37] || app.keys[65]) {  // Left or A
+//                    app.goodGuy.particle.velocity.x -= 0.4;
+                    app.goodGuy.particle.velocity.x -= Math.min(0.15 + 4E-6 * app.score.score, 0.5);
                 }
-                if (app.keys[39]) { // Right
-                    app.goodGuy.velocity.x += 0.2;
+                if (app.keys[39] || app.keys[68]) { // Right or D
+//                    app.goodGuy.particle.velocity.x += 0.4;
+                    app.goodGuy.particle.velocity.x += Math.min(0.15 + 4E-6 * app.score.score, 0.5);
                 } 
             }
 
             function addSirens() {
                 if (Math.random() > 0.98) {
-                    app.sirens.push(new Siren(app));    
+                    app.sirens.push(new SpiralSiren(app));    
                 }
                 /*
                 if (!app.sirens.length) {
@@ -62,20 +101,33 @@ function webGLStart() {
 
                 addSirens();
 
-                app.goodGuy.update();
                 for (var i=0; i<app.sirens.length; i++) {
                     app.sirens[i].update();
                 }
 
+                app.goodGuy.update();
+
                 app.cloud.update();
+
+                app.ui.updateScore();
 
                 gl.clear(gl.COLOR_BUFFER_BIT);
                 app.scene.render();
-//                PhiloGL.Fx.requestAnimationFrame(draw);
+
+                if (!app.paused) {
+                    PhiloGL.Fx.requestAnimationFrame(draw);
+                }
+                app.frameCount += 1;
             }
 
-//            draw();
-            setInterval(draw, 1000/60);
+            app.run = function() {
+                PhiloGL.Fx.requestAnimationFrame(draw);
+                this.paused = false;
+            };
+
+            app.stop = function() {
+                this.paused = true;
+            };
         },
                
         events: {

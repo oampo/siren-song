@@ -1,0 +1,63 @@
+body {
+    background-color: #000;
+    color: #FFF;
+    padding: 20px;
+}
+
+canvas {
+    margin: 0 auto;
+    border: 1px solid #FFF;
+    width: 800px;
+    height: 600px;
+}
+
+h1 {
+    font-size: 48px;
+}
+
+div#header {
+    width: 800px;
+    margin: 0 auto;
+    text-align: center;
+    font-family: 'Orbitron', sans-serif;
+}
+
+div#main {
+    width: 800px;
+    margin: 0 auto;
+}
+
+div#ui {
+    font-family: 'Orbitron', sans-serif;
+}
+
+div#score, div#high-score, div#new-high-score {
+    width: 33.3%;
+    float: left;
+    color: #00FF00;
+    font-size: 36px;
+}
+
+div#score {
+    color: #00FF00;
+}
+
+div#new-high-score {
+    color: #FFF;
+    text-align: center;
+    visibility: hidden;
+}
+
+div#high-score {
+    color: #FF0000;
+    text-align: right;
+}
+
+div#countdown {
+    font-size: 72px;
+    position: absolute;
+    text-align: center;
+    left: 50%;
+    top: 300px;
+}
+

@@ -2,6 +2,8 @@ var Cloud = function(app) {
     this.app = app;
 
     this.particleSystem = new ParticleSystem(0, 0);
+    this.particleSystem.integrator = new CloudIntegrator(this.particleSystem);
+//    this.particleSystem.setIntegrator(ParticleSystem.MODIFIED_EULER);
     
     this.model = new PhiloGL.O3D.Model({id: "cloud",
                                         dynamic: true,
@@ -16,20 +18,54 @@ Cloud.prototype.update = function() {
     var vertices = [];
     var colors = [];
 
-    var particles = this.particleSystem.particles;
+    var halfHeight = this.app.height / 2;
+    var level = this.app.level;
+    var leftColors = level.leftColors;
+    var rightColors = level.rightColors;
+    var score = this.app.score;
+
+    var push = Array.prototype.push;
+
+    var particleSystem = this.particleSystem;
+    var particles = particleSystem.particles;
     var numberOfParticles = particles.length;
     for (var i=0; i<numberOfParticles; i++) {
-        var particle = particles[i];
+        var index = numberOfParticles - i - 1;
+        var particle = particles[index];
         var position = particle.position;
-        if (position.y < -height / 2 ||
-            position.y > height / 2 ||
-            position.x < sides[0] ||
-            position.x > sides[1]) {
-            this.particleSystem.removeParticle(i);
+
+        var xPos = position.x;
+        var yPos = position.y;
+
+        var sides = level.getSides(yPos);
+        var left = sides[0];
+        var right = sides[1];
+
+        var age = particle.age;
+        var hue = age % Color.PARTICLE_TABLE.length;
+        var color = Color.PARTICLE_TABLE[hue];
+
+        if (age > 1000 ||
+            yPos < -halfHeight ||
+            yPos >  halfHeight ||
+            xPos < left ||
+            xPos > right) {
+            particleSystem.removeParticle(index);
+            score.increase();
+
+
+            if (xPos < left) {
+                var index = level.yPosToIndex(yPos);
+                leftColors[index] = color;
+            }
+            else if (xPos > right) {
+                var index = level.yPosToIndex(yPos);
+                rightColors[index] = color;
+            }
         }
         else {
-            vertices.push(position.x, position.y, 0);
-            colors.push(1, 0, 0, 1);
+            vertices.push(xPos, yPos, 0);
+            push.apply(colors, color);
         }
     }
     
