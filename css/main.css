@@ -1,7 +1,15 @@
+html, body {
+    height: 100%;
+}
+
 body {
     background-color: #000;
     color: #FFF;
-    padding: 20px;
+}
+
+a {
+    text-decoration: none;
+    color: #FFF;
 }
 
 canvas {
@@ -15,11 +23,32 @@ h1 {
     font-size: 48px;
 }
 
+div#wrapper {
+    min-height: 100%;
+    height: auto !important;
+    height: 100%;
+    margin: 0 auto -21px;
+}
+
+div#footer, div#push {
+    clear: both;
+    height: 20px;
+}
+
+div#footer {
+    background-color: #555753;
+    padding: 0 10px;
+    text-align: right;
+    position: relative;
+    border-top: 1px solid #EEEEEE;
+}
+
 div#header {
     width: 800px;
     margin: 0 auto;
     text-align: center;
     font-family: 'Orbitron', sans-serif;
+    padding-top: 10px;
 }
 
 div#main {
@@ -61,3 +90,6 @@ div#countdown {
     top: 300px;
 }
 
+div#footer .amp {
+    color: #D3D7CF;
+}
