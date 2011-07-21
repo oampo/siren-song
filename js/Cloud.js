@@ -3,11 +3,10 @@ var Cloud = function(app) {
 
     this.particleSystem = new ParticleSystem(0, 0);
     this.particleSystem.integrator = new CloudIntegrator(this.particleSystem);
-//    this.particleSystem.setIntegrator(ParticleSystem.MODIFIED_EULER);
-    
-    this.model = new PhiloGL.O3D.Model({id: "cloud",
+
+    this.model = new PhiloGL.O3D.Model({id: 'cloud',
                                         dynamic: true,
-                                        drawType: "POINTS"});
+                                        drawType: 'POINTS'});
     this.model.dynamic = true;
     this.app.scene.add(this.model);
 };
@@ -29,7 +28,7 @@ Cloud.prototype.update = function() {
     var particleSystem = this.particleSystem;
     var particles = particleSystem.particles;
     var numberOfParticles = particles.length;
-    for (var i=0; i<numberOfParticles; i++) {
+    for (var i = 0; i < numberOfParticles; i++) {
         var index = numberOfParticles - i - 1;
         var particle = particles[index];
         var position = particle.position;
@@ -47,12 +46,11 @@ Cloud.prototype.update = function() {
 
         if (age > 1000 ||
             yPos < -halfHeight ||
-            yPos >  halfHeight ||
+            yPos > halfHeight ||
             xPos < left ||
             xPos > right) {
             particleSystem.removeParticle(index);
             score.increase();
-
 
             if (xPos < left) {
                 var index = level.yPosToIndex(yPos);
@@ -68,7 +66,7 @@ Cloud.prototype.update = function() {
             push.apply(colors, color);
         }
     }
-    
+
     this.model.vertices = vertices;
     this.model.colors = colors;
 };

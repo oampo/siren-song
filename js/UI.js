@@ -33,7 +33,7 @@ UI.prototype.flashHighScore = function() {
     if (this.flashTimeout) {
         return;
     }
-    this.newHighScoreBox.style.visibility == "visible";
+    this.newHighScoreBox.style.visibility == 'visible';
 
     this.flashCount = 0;
 
@@ -41,11 +41,11 @@ UI.prototype.flashHighScore = function() {
 };
 
 UI.prototype.doFlashHighScore = function() {
-    if (this.newHighScoreBox.style.visibility == "visible") {
-        this.newHighScoreBox.style.visibility = "hidden";
+    if (this.newHighScoreBox.style.visibility == 'visible') {
+        this.newHighScoreBox.style.visibility = 'hidden';
     }
     else {
-        this.newHighScoreBox.style.visibility = "visible";
+        this.newHighScoreBox.style.visibility = 'visible';
     }
     this.flashCount += 1;
 
@@ -66,7 +66,7 @@ UI.prototype.startCountdown = function() {
 UI.prototype.doCountdown = function() {
     this.countdown -= 1;
     if (this.countdown == 0) {
-        this.countdownBox.textContent = "";
+        this.countdownBox.textContent = '';
         this.app.run();
     }
     else {

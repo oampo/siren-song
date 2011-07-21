@@ -12,5 +12,5 @@ Score.prototype.increase = function() {
 };
 
 Score.prototype.decrease = function() {
-    this.score = Math.floor(this.score  * 0.995);
+    this.score = Math.floor(this.score * 0.995);
 };

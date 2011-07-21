@@ -7,14 +7,13 @@ var SpiralSiren = function(app) {
 extend(SpiralSiren, Siren);
 
 SpiralSiren.prototype.createParticles = function() {
-    for (var i=0; i<this.numberOfOutputs; i++) {
+    for (var i = 0; i < this.numberOfOutputs; i++) {
         var angle = this.phase + i * 2 * Math.PI / this.numberOfOutputs;
-        var particle = this.app.cloud.particleSystem.makeParticle();
+        var particle = new Particle(1);
+        this.app.cloud.particleSystem.particles.push(particle);
         PhiloGL.Vec3.setVec3(particle.position, this.particle.position);
-        PhiloGL.Vec3.set(particle.velocity,
-                         Math.sin(angle),
-                         this.particle.velocity.y + Math.cos(angle),
-                         0);
+        particle.velocity.x = Math.sin(angle);
+        particle.velocity.y = this.particle.velocity.y + Math.cos(angle);
     }
     this.phase += this.frequency * 2 * Math.PI;
 };

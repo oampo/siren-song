@@ -14,20 +14,22 @@ var Siren = function(app) {
     var sides = this.app.level.getSides(yPos);
     var xPos = sides[0] + this.radius * 2;
     xPos += (sides[1] - sides[0] - this.radius * 2) * Math.random();
-    this.particle = this.app.particleSystem.makeParticle(1, xPos, yPos, 0);
+    this.particle = new Particle(1);
+    this.particle.position.x = xPos;
+    this.particle.position.y = yPos;
+    this.particle.velocity.y = -3;
+    this.app.particleSystem.particles.push(this.particle);
 
     this.attraction = new AttractionToGoodGuy(this.app.goodGuy.particle,
                                               this.particle, 800, 20, 40);
-    this.app.particleSystem.addCustomForce(this.attraction);
-    
-    PhiloGL.Vec3.set(this.particle.velocity, 0, -3, 0);
+    this.app.particleSystem.forces.push(this.attraction);
 
     var vertices = [];
     var colors = [];
     var numberOfPoints = 40;
     var numberOfSpirals = 2;
     var spacing = 3;
-    for (var i=0; i<numberOfPoints; i++) {
+    for (var i = 0; i < numberOfPoints; i++) {
         var theta = numberOfSpirals * i * 2 * Math.PI / numberOfPoints;
         vertices.push(5 * theta * Math.sin(theta) / (2 * Math.PI));
         vertices.push(5 * theta * Math.cos(theta) / (2 * Math.PI));
@@ -37,7 +39,7 @@ var Siren = function(app) {
 
     this.model = new PhiloGL.O3D.Model({vertices: vertices,
                                         colors: colors,
-                                        drawType: "LINE_STRIP"});
+                                        drawType: 'LINE_STRIP'});
     this.app.scene.add(this.model);
 };
 
@@ -63,10 +65,7 @@ Siren.prototype.update = function() {
 
 Siren.prototype.remove = function() {
     this.app.scene.remove(this.model);
-    var index = this.app.particleSystem.particles.indexOf(this.particle);
-    if (index != -1) {
-        this.app.particleSystem.removeParticle(index);
-    }
+    this.app.particleSystem.removeParticle(this.particle);
 
     var index = this.app.sirens.indexOf(this);
     if (index != -1) {
@@ -90,14 +89,12 @@ Siren.prototype.remove = function() {
             after = chain[chainIndex + 1];
         }
 
-        var index = this.app.particleSystem.springs.indexOf(this.springIn);
-        this.app.particleSystem.removeSpring(index);
+        this.app.particleSystem.removeForce(this.springIn);
         this.springIn = null;
         before.springOut = null;
 
         if (after) {
-            var index = this.app.particleSystem.springs.indexOf(this.springOut);
-            this.app.particleSystem.removeSpring(index);
+            this.app.particleSystem.removeForce(this.springOut);
             this.springOut = null;
             after.springIn = null;
         }
@@ -107,12 +104,12 @@ Siren.prototype.remove = function() {
             if (before == this.app.goodGuy) {
                 spring = new SpringToGoodGuy(before.particle,
                                              after.particle, 0.05, 0.5, 15);
-                this.app.particleSystem.springs.push(spring);
+                this.app.particleSystem.forces.push(spring);
             }
             else {
-                spring = this.app.particleSystem.makeSpring(before.particle,
-                                                            after.particle,
-                                                            0.05, 0.5, 15);
+                spring = new Spring(before.particle, after.particle,
+                                    0.05, 0.5, 15);
+                this.app.particleSystem.forces.push(spring);
             }
             before.springOut = spring;
             after.springIn = spring;
@@ -128,13 +125,12 @@ Siren.prototype.remove = function() {
             this.synth.sirenEnv.gate.setValue(0);
         }
         else {
-            console.log("me");
+            console.log('me');
             this.synth.removeWithEvent();
         }
     }
     else {
-        var index = this.app.particleSystem.customForces.indexOf(this.attraction);
-        this.app.particleSystem.removeCustomForce(index);
+        var index = this.app.particleSystem.removeForce(this.attraction);
     }
 };
 
@@ -156,7 +152,7 @@ Siren.prototype.createSynth = function() {
 
     var event = this.app.audiolet.scheduler.play([this.frequencyPattern],
                                                   this.durationPattern,
-                                                  this.playNote.bind(this));    
+                                                  this.playNote.bind(this));
     this.synth.event = event;
     this.synth.scheduler = this.app.audiolet.scheduler;
 };

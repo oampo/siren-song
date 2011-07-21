@@ -42,7 +42,7 @@ SirenSynth.prototype.removeWithEvent = function() {
     this.scheduler.stop(this.event);
 };
 
-SirenSynth.DURATIONS = [1/3, 1/4];
+SirenSynth.DURATIONS = [1 / 3, 1 / 4];
 SirenSynth.FREQUENCIES = [[0, 1, 2],
                           [0, 1, 2, 3],
                           [0, 1, 2, 3, 4, 5],

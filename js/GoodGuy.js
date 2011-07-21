@@ -7,14 +7,16 @@ var GoodGuy = function(app) {
 
     var sides = this.app.level.getSides(0);
     var middle = (sides[0] + sides[1]) / 2;
-    this.particle = this.app.particleSystem.makeParticle(1, middle, 0, 0);
+    this.particle = new Particle(1);
+    this.particle.position.x = middle;
+    this.app.particleSystem.particles.push(this.particle);
 
     var vertices = [];
     var colors = [];
     var numberOfPoints = 80;
     var numberOfSpirals = 3;
     var spacing = 3;
-    for (var i=0; i<numberOfPoints; i++) {
+    for (var i = 0; i < numberOfPoints; i++) {
         var theta = numberOfSpirals * i * 2 * Math.PI / numberOfPoints;
         vertices.push(5 * theta * Math.sin(theta) / (2 * Math.PI));
         vertices.push(5 * theta * Math.cos(theta) / (2 * Math.PI));
@@ -24,7 +26,7 @@ var GoodGuy = function(app) {
 
     this.model = new PhiloGL.O3D.Model({vertices: vertices,
                                         colors: colors,
-                                        drawType: "LINE_STRIP"});
+                                        drawType: 'LINE_STRIP'});
     this.app.scene.add(this.model);
 
 };
@@ -43,7 +45,7 @@ GoodGuy.prototype.update = function() {
         this.particle.velocity.x = 0;
         this.app.ui.startCountdown();
     }
-        
+
     if (this.particle.position.x < sides[0] ||
         this.particle.position.x > sides[1]) {
         this.app.score.decrease();
@@ -59,10 +61,10 @@ GoodGuy.prototype.handleSirenCollisions = function() {
     var sirens = this.app.sirens;
     var numberOfSirens = sirens.length;
     var position = this.particle.position;
-    for (var i=0; i<numberOfSirens; i++) {
+    for (var i = 0; i < numberOfSirens; i++) {
         var siren = sirens[i];
         if (!siren.connected &&
-            PhiloGL.Vec3.distTo(position, siren.particle.position) < 
+            PhiloGL.Vec3.distTo(position, siren.particle.position) <
             this.radius + siren.radius) {
             this.attach(siren);
             this.app.multiplier += 1;
@@ -75,21 +77,18 @@ GoodGuy.prototype.attach = function(sirenA) {
         // Connect to goodGuy
         this.springOut = new SpringToGoodGuy(this.particle, sirenA.particle,
                                              0.05, 0.5, 15);
-        // Bit of a hack which makes life easier.  Pretend that SpringToGoodGuy
-        // is a real spring, so we can remove it in the regular way.
-        this.app.particleSystem.springs.push(this.springOut);
+        this.app.particleSystem.forces.push(this.springOut);
         sirenA.springIn = this.springOut;
     }
     else {
         var sirenB = this.chain[this.chain.length - 1];
-        var spring = this.app.particleSystem.makeSpring(sirenA.particle,
-                                                        sirenB.particle,
-                                                        0.05, 0.5, 15);
+        var spring = new Spring(sirenA.particle, sirenB.particle,
+                                 0.05, 0.5, 15);
+        this.app.particleSystem.forces.push(spring);
         sirenA.springIn = spring;
         sirenB.springOut = spring;
     }
-    var index = this.app.particleSystem.customForces.indexOf(sirenA.attraction);
-    this.app.particleSystem.removeCustomForce(index);
+    var index = this.app.particleSystem.removeForce(sirenA.attraction);
     sirenA.connected = true;
     sirenA.createSynth();
     this.chain.push(sirenA);

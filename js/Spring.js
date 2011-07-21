@@ -1,4 +1,4 @@
-var SpringToGoodGuy = function(a, b, springConstant, damping, restLength) {
+var Spring = function(a, b, springConstant, damping, restLength) {
     this.a = a;
     this.b = b;
     this.springConstant = springConstant;
@@ -6,7 +6,7 @@ var SpringToGoodGuy = function(a, b, springConstant, damping, restLength) {
     this.restLength = restLength;
 };
 
-SpringToGoodGuy.prototype.toString = function() {
+Spring.prototype.toString = function() {
     return 'a: ' + this.a +
            '\nb: ' + this.b +
            '\nspringConstant: ' + this.springConstant +
@@ -14,12 +14,12 @@ SpringToGoodGuy.prototype.toString = function() {
            '\nrestLength: ' + this.restLength;
 };
 
-SpringToGoodGuy.prototype.currentLength = function() {
+Spring.prototype.currentLength = function() {
     return PhiloGL.Vec3.distTo(this.a.position, this.b.position);
 };
 
 
-SpringToGoodGuy.prototype.apply = function() {
+Spring.prototype.apply = function() {
     var a = this.a;
     var b = this.b;
     var restLength = this.restLength;
@@ -42,5 +42,6 @@ SpringToGoodGuy.prototype.apply = function() {
 
     PhiloGL.Vec3.$scale(a2b, r);
 
+    PhiloGL.Vec3.$add(a.force, a2b);
     PhiloGL.Vec3.$add(b.force, PhiloGL.Vec3.neg(a2b));
 };

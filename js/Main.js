@@ -4,7 +4,7 @@ PhiloGL.O3D.Model.prototype.update = function() {
         pos = this.position,
         rot = this.rotation,
         scale = this.scale;
-   
+
     PhiloGL.Mat4.id(matrix);
     PhiloGL.Mat4.$translate(matrix, pos.x, pos.y, pos.z);
     PhiloGL.Mat4.$rotateXYZ(matrix, rot.x, rot.y, rot.z);
@@ -18,7 +18,7 @@ function webGLStart() {
             antialias: false
         },
         onError: function() {
-            alert("There was an error creating the app.");
+            alert('There was an error creating the app.');
         },
 
         onLoad: function(app) {
@@ -35,10 +35,10 @@ function webGLStart() {
             gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
             gl.viewport(0, 0, app.width, app.height);
-            app.camera.projection.ortho(-app.width/2,
-                                        app.width/2,
-                                        app.height/2,
-                                        -app.height/2, -1, 1);
+            app.camera.projection.ortho(-app.width / 2,
+                                        app.width / 2,
+                                        app.height / 2,
+                                        -app.height / 2, -1, 1);
             app.camera.modelView.id();
 
             app.keys = new Array(512);
@@ -53,8 +53,7 @@ function webGLStart() {
             app.reverb.connect(app.crusher);
             app.crusher.connect(app.audiolet.output);
 
-            app.particleSystem = new ParticleSystem(0, 0);
-            app.particleSystem.integrator = new OptimisedIntegrator(app.particleSystem);
+            app.particleSystem = new ParticleSystem();
 
             app.cloud = new Cloud(app);
 
@@ -74,18 +73,18 @@ function webGLStart() {
 
             function handleKeys() {
                 if (app.keys[37] || app.keys[65]) {  // Left or A
-//                    app.goodGuy.particle.velocity.x -= 0.4;
-                    app.goodGuy.particle.velocity.x -= Math.min(0.15 + 4E-6 * app.score.score, 0.5);
+                    var dx = Math.min(0.15 + 4E-6 * app.score.score, 0.5);
+                    app.goodGuy.particle.velocity.x -= dx;
                 }
                 if (app.keys[39] || app.keys[68]) { // Right or D
-//                    app.goodGuy.particle.velocity.x += 0.4;
-                    app.goodGuy.particle.velocity.x += Math.min(0.15 + 4E-6 * app.score.score, 0.5);
-                } 
+                    var dx = Math.min(0.15 + 4E-6 * app.score.score, 0.5);
+                    app.goodGuy.particle.velocity.x += dx;
+                }
             }
 
             function addSirens() {
                 if (Math.random() > 0.98) {
-                    app.sirens.push(new SpiralSiren(app));    
+                    app.sirens.push(new SpiralSiren(app));
                 }
                 /*
                 if (!app.sirens.length) {
@@ -93,7 +92,7 @@ function webGLStart() {
                 }
                 */
             }
-            
+
             function draw() {
                 handleKeys();
                 app.particleSystem.tick();
@@ -101,7 +100,7 @@ function webGLStart() {
 
                 addSirens();
 
-                for (var i=0; i<app.sirens.length; i++) {
+                for (var i = 0; i < app.sirens.length; i++) {
                     app.sirens[i].update();
                 }
 
@@ -129,7 +128,7 @@ function webGLStart() {
                 this.paused = true;
             };
         },
-               
+
         events: {
             onKeyDown: function(event) {
                 this.keys[event.code] = true;

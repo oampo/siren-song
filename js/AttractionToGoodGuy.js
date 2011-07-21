@@ -5,7 +5,6 @@ var AttractionToGoodGuy = function(a, b, k, distanceMin, distanceMax) {
     this.distanceMin = distanceMin;
     this.distanceMax = distanceMax;
 
-    this.on = true;
     this.distanceMinSquared = Math.pow(this.distanceMin, 2);
     this.distanceMaxSquared = Math.pow(this.distanceMax, 2);
 };
@@ -35,26 +34,23 @@ AttractionToGoodGuy.prototype.apply = function() {
     var k = this.k;
     var distanceMinSquared = this.distanceMinSquared;
     var distanceMaxSquared = this.distanceMaxSquared;
-    if (this.on && (!a.fixed || !b.fixed)) {
-        var a2b = PhiloGL.Vec3.sub(a.position, b.position);
-        var a2bDistanceSquared = PhiloGL.Vec3.normSq(a2b);
 
-        if (a2bDistanceSquared < distanceMaxSquared) {
-            if (a2bDistanceSquared < distanceMinSquared) {
-                a2bDistanceSquared = distanceMinSquared;
-            }
+    var a2b = PhiloGL.Vec3.sub(a.position, b.position);
+    var a2bDistanceSquared = PhiloGL.Vec3.normSq(a2b);
 
-            var force = k * a.mass * b.mass / a2bDistanceSquared,
-                length = Math.sqrt(a2bDistanceSquared);
-
-            PhiloGL.Vec3.$scale(a2b, 1 / length);
-
-            PhiloGL.Vec3.$scale(a2b, force);
-
-            if (!b.fixed) {
-                PhiloGL.Vec3.$add(b.force, a2b);
-            }
+    if (a2bDistanceSquared < distanceMaxSquared) {
+        if (a2bDistanceSquared < distanceMinSquared) {
+            a2bDistanceSquared = distanceMinSquared;
         }
+
+        var force = k * a.mass * b.mass / a2bDistanceSquared,
+            length = Math.sqrt(a2bDistanceSquared);
+
+        PhiloGL.Vec3.$scale(a2b, 1 / length);
+
+        PhiloGL.Vec3.$scale(a2b, force);
+
+        PhiloGL.Vec3.$add(b.force, a2b);
     }
 };
 

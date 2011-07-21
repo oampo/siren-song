@@ -8,7 +8,9 @@ var Level = function(app) {
     this.width = this.app.width;
     this.height = this.app.height;
 
-    this.particle = this.app.particleSystem.makeParticle();
+    this.particle = new Particle(1);
+    this.particle.velocity.y = -3;
+    this.app.particleSystem.particles.push(this.particle);
     PhiloGL.Vec3.set(this.particle.velocity, 0, -3, 0);
     this.lastYPos = 0;
     this.zeroPos = 0;
@@ -49,7 +51,7 @@ var Level = function(app) {
         fastStep: 0.01
     };
 
-    for (var i=0; i<this.height; i++) {
+    for (var i = 0; i < this.height; i++) {
         this.left[i] = this.calculateSide(i, this.leftDetails);
         this.right[i] = this.calculateSide(i, this.rightDetails);
         this.leftColors[i] = null;
@@ -57,15 +59,15 @@ var Level = function(app) {
     }
 
     this.leftModel = new PhiloGL.O3D.Model({
-        id: "Left side",
+        id: 'Left side',
         dynamic: true,
-        drawType: "LINE_STRIP"
+        drawType: 'LINE_STRIP'
     });
     this.leftModel.dynamic = true;
     this.app.scene.add(this.leftModel);
 
     this.rightModel = new PhiloGL.O3D.Model({
-        id: "Right side",
+        id: 'Right side',
         dynamic: true,
         drawType: 'LINE_STRIP'
     });
@@ -73,15 +75,15 @@ var Level = function(app) {
     this.app.scene.add(this.rightModel);
 
     this.leftColorModel = new PhiloGL.O3D.Model({
-        id: "Left colors",
+        id: 'Left colors',
         dynamic: true,
         drawType: 'LINES'
     });
     this.leftColorModel.dynamic = true;
     this.app.scene.add(this.leftColorModel);
 
-    this.rightColorModel= new PhiloGL.O3D.Model({
-        id: "Right colors",
+    this.rightColorModel = new PhiloGL.O3D.Model({
+        id: 'Right colors',
         dynamic: true,
         drawType: 'LINES'
     });
@@ -165,7 +167,7 @@ Level.prototype.updateModels = function() {
 
     var startPosition = Math.floor(Math.mod(this.lastYPos, height));
 
-    for (var i=0; i<height; i++) {
+    for (var i = 0; i < height; i++) {
         var readIndex = (startPosition + i + 1) % height;
         var yPos = height / 2 - i;
 
