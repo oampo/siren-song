@@ -7,9 +7,8 @@ var GoodGuy = function(app) {
 
     var sides = this.app.level.getSides(0);
     var middle = (sides[0] + sides[1]) / 2;
-    this.particle = new Particle(1);
+    this.particle = this.app.particleSystem.createParticle();
     this.particle.position[0] = middle;
-    this.app.particleSystem.particles.push(this.particle);
 
     var numberOfPoints = 80;
     var numberOfSpirals = 3;

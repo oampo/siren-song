@@ -14,11 +14,10 @@ var Siren = function(app) {
     var sides = this.app.level.getSides(yPos);
     var xPos = sides[0] + this.radius * 2;
     xPos += (sides[1] - sides[0] - this.radius * 2) * Math.random();
-    this.particle = new Particle(1);
+    this.particle = this.app.particleSystem.createParticle();
     this.particle.position[0] = xPos;
     this.particle.position[1] = yPos;
     this.particle.velocity[1] = -3;
-    this.app.particleSystem.particles.push(this.particle);
 
     this.attraction = new AttractionToGoodGuy(this.app.goodGuy.particle,
                                               this.particle, 800, 20, 40);
@@ -78,7 +77,7 @@ Siren.prototype.draw = function() {
 };
 
 Siren.prototype.remove = function() {
-    this.app.particleSystem.removeParticle(this.particle);
+    this.app.particleSystem.recycleParticle(this.particle);
 
     var index = this.app.sirens.indexOf(this);
     if (index != -1) {

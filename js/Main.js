@@ -35,7 +35,7 @@ window.onload = function() {
         this.reverb.connect(this.crusher);
         this.crusher.connect(this.audiolet.output);
 
-        this.particleSystem = new ParticleSystem();
+        this.particleSystem = new RecyclingParticleSystem(30);
 
         this.cloud = new Cloud(this);
 
@@ -49,8 +49,11 @@ window.onload = function() {
 
         this.ui = new UI(this);
 
+        this.update();
         this.draw();
         this.ui.startCountdown();
+
+        setInterval(this.preUpdate.bind(this), 1000/60);
     }
     extend(SirenSong, App);
     implement(SirenSong, KeyEvents);
@@ -77,7 +80,13 @@ window.onload = function() {
         */
     };
 
-    SirenSong.prototype.draw = function() {
+    SirenSong.prototype.preUpdate = function() {
+        if (this.running) {
+            this.update();
+        }
+    };
+
+    SirenSong.prototype.update = function() {
         this.handleKeys();
         this.particleSystem.tick();
         this.level.update();
@@ -93,7 +102,9 @@ window.onload = function() {
         this.cloud.update();
 
         this.ui.updateScore();
+    };
 
+    SirenSong.prototype.draw = function() {
         this.clear([0, 0, 0, 1]);
         this.renderer.setUniform('uModelviewMatrix',
                                  this.modelview.matrix);

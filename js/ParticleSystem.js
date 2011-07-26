@@ -4,6 +4,12 @@ var ParticleSystem = function() {
     this.forces = [];
 };
 
+ParticleSystem.prototype.createParticle = function() {
+    var particle = new Particle();
+    this.particles.push(particle);
+    return particle;
+};
+
 ParticleSystem.prototype.tick = function(time) {
     this.integrator.step(time || 1);
 };

@@ -1,7 +1,7 @@
 var Cloud = function(app) {
     this.app = app;
 
-    this.particleSystem = new ParticleSystem(0, 0);
+    this.particleSystem = new RecyclingParticleSystem(300);
     this.particleSystem.integrator = new CloudIntegrator(this.particleSystem);
 
     this.mesh = new Mesh(100, gl.POINTS,
@@ -51,7 +51,7 @@ Cloud.prototype.update = function() {
             yPos > halfHeight ||
             xPos < left ||
             xPos > right) {
-            particleSystem.removeParticle(index);
+            particleSystem.recycleParticle(index);
             score.increase();
 
             if (xPos < left) {

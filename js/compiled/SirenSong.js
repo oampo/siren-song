@@ -80,7 +80,7 @@ CloudIntegrator.prototype.step = function(t) {
 var Cloud = function(app) {
     this.app = app;
 
-    this.particleSystem = new ParticleSystem(0, 0);
+    this.particleSystem = new RecyclingParticleSystem(300);
     this.particleSystem.integrator = new CloudIntegrator(this.particleSystem);
 
     this.mesh = new Mesh(100, gl.POINTS,
@@ -130,7 +130,7 @@ Cloud.prototype.update = function() {
             yPos > halfHeight ||
             xPos < left ||
             xPos > right) {
-            particleSystem.removeParticle(index);
+            particleSystem.recycleParticle(index);
             score.increase();
 
             if (xPos < left) {
@@ -229,9 +229,8 @@ var GoodGuy = function(app) {
 
     var sides = this.app.level.getSides(0);
     var middle = (sides[0] + sides[1]) / 2;
-    this.particle = new Particle(1);
+    this.particle = this.app.particleSystem.createParticle();
     this.particle.position[0] = middle;
-    this.app.particleSystem.particles.push(this.particle);
 
     var numberOfPoints = 80;
     var numberOfSpirals = 3;
@@ -662,7 +661,7 @@ window.onload = function() {
         this.reverb.connect(this.crusher);
         this.crusher.connect(this.audiolet.output);
 
-        this.particleSystem = new ParticleSystem();
+        this.particleSystem = new RecyclingParticleSystem(30);
 
         this.cloud = new Cloud(this);
 
@@ -676,8 +675,11 @@ window.onload = function() {
 
         this.ui = new UI(this);
 
+        this.update();
         this.draw();
         this.ui.startCountdown();
+
+        setInterval(this.preUpdate.bind(this), 1000/60);
     }
     extend(SirenSong, App);
     implement(SirenSong, KeyEvents);
@@ -704,7 +706,13 @@ window.onload = function() {
         */
     };
 
-    SirenSong.prototype.draw = function() {
+    SirenSong.prototype.preUpdate = function() {
+        if (this.running) {
+            this.update();
+        }
+    };
+
+    SirenSong.prototype.update = function() {
         this.handleKeys();
         this.particleSystem.tick();
         this.level.update();
@@ -720,7 +728,9 @@ window.onload = function() {
         this.cloud.update();
 
         this.ui.updateScore();
+    };
 
+    SirenSong.prototype.draw = function() {
         this.clear([0, 0, 0, 1]);
         this.renderer.setUniform('uModelviewMatrix',
                                  this.modelview.matrix);
@@ -746,8 +756,8 @@ window.onload = function() {
                                    antialias: false}
                               );
 };
-var Particle = function(mass) {
-    this.mass = mass;
+var Particle = function() {
+    this.mass = 1;
     this.position = vec3.create();
     this.velocity = vec3.create();
     this.force = vec3.create();
@@ -761,10 +771,23 @@ Particle.prototype.toString = function() {
            '\n age: ' + this.age;
 };
 
+Particle.prototype.reset = function() {
+    this.mass = 1;
+    vec3.set([0, 0, 0], this.position);
+    vec3.set([0, 0, 0], this.velocity);
+    vec3.set([0, 0, 0], this.force);
+    this.age = 0;
+};
 var ParticleSystem = function() {
     this.integrator = new Integrator(this);
     this.particles = [];
     this.forces = [];
+};
+
+ParticleSystem.prototype.createParticle = function() {
+    var particle = new Particle();
+    this.particles.push(particle);
+    return particle;
 };
 
 ParticleSystem.prototype.tick = function(time) {
@@ -942,6 +965,61 @@ SimplexNoise.prototype.noise = function(xin, yin) {
     return 70.0 * (n0 + n1 + n2);
 };
 
+var RecyclingParticleSystem = function(numberOfParticles) {
+    ParticleSystem.call(this);
+    this.oldParticles = [];
+    for (var i=0; i<numberOfParticles; i++) {
+        this.oldParticles.push(new Particle());
+    }
+};
+extend(RecyclingParticleSystem, ParticleSystem);
+
+RecyclingParticleSystem.prototype.createParticle = function() {
+    if (!this.oldParticles.length) {
+        var numberOfParticles = this.particles.length;
+        for (var i=0; i<numberOfParticles * 3; i++) {
+            this.oldParticles.push(new Particle());
+        }
+    }
+    var particle = this.oldParticles.pop();
+    this.particles.push(particle);
+    return particle;
+};
+
+RecyclingParticleSystem.prototype.recycleParticle = function(particle) {
+    var particle = this.removeParticle(particle);
+    particle.reset();
+    this.oldParticles.push(particle);
+};
+
+RecyclingParticleSystem.prototype.removeParticle = function(particle) {
+    var type = typeof particle;
+    if (type == 'number') {
+        return this.particles.splice(particle, 1)[0];
+    }
+    else if (type == 'object') {
+        var index = this.particles.indexOf(particle);
+        if (index != -1) {
+            return this.particles.splice(index, 1)[0];
+        }
+    }
+    return null;
+};
+
+RecyclingParticleSystem.prototype.removeForce = function(force) {
+    var type = typeof force;
+    if (type == 'number') {
+        return this.forces.splice(force, 1)[0];
+    }
+    else if (type == 'object') {
+        var index = this.forces.indexOf(force);
+        if (index != -1) {
+            return this.forces.splice(index, 1)[0];
+        }
+    }
+    return null;
+};
+
 var Score = function(app) {
     this.app = app;
     this.score = 0;
@@ -974,11 +1052,10 @@ var Siren = function(app) {
     var sides = this.app.level.getSides(yPos);
     var xPos = sides[0] + this.radius * 2;
     xPos += (sides[1] - sides[0] - this.radius * 2) * Math.random();
-    this.particle = new Particle(1);
+    this.particle = this.app.particleSystem.createParticle();
     this.particle.position[0] = xPos;
     this.particle.position[1] = yPos;
     this.particle.velocity[1] = -3;
-    this.app.particleSystem.particles.push(this.particle);
 
     this.attraction = new AttractionToGoodGuy(this.app.goodGuy.particle,
                                               this.particle, 800, 20, 40);
@@ -1038,7 +1115,7 @@ Siren.prototype.draw = function() {
 };
 
 Siren.prototype.remove = function() {
-    this.app.particleSystem.removeParticle(this.particle);
+    this.app.particleSystem.recycleParticle(this.particle);
 
     var index = this.app.sirens.indexOf(this);
     if (index != -1) {
@@ -1207,8 +1284,7 @@ extend(SpiralSiren, Siren);
 SpiralSiren.prototype.createParticles = function() {
     for (var i = 0; i < this.numberOfOutputs; i++) {
         var angle = this.phase + i * 2 * Math.PI / this.numberOfOutputs;
-        var particle = new Particle(1);
-        this.app.cloud.particleSystem.particles.push(particle);
+        var particle = this.app.cloud.particleSystem.createParticle();
         vec3.set(this.particle.position, particle.position);
         particle.velocity[0] = Math.sin(angle);
         particle.velocity[1] = this.particle.velocity[1] + Math.cos(angle);
