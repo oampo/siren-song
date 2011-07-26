@@ -1,142 +1,121 @@
-// Override for speed
-PhiloGL.O3D.Model.prototype.update = function() {
-    var matrix = this.matrix,
-        pos = this.position,
-        rot = this.rotation,
-        scale = this.scale;
+window.onload = function() {
+    var SirenSong = function(element, options) {
+        App.call(this, element, options);
+        this.initKeyEvents();
 
-    PhiloGL.Mat4.id(matrix);
-    PhiloGL.Mat4.$translate(matrix, pos.x, pos.y, pos.z);
-    PhiloGL.Mat4.$rotateXYZ(matrix, rot.x, rot.y, rot.z);
-    PhiloGL.Mat4.$scale(matrix, scale.x, scale.y, scale.z);
-};
+        this.width = this.canvas.width;
+        this.height = this.canvas.height;
+
+        gl.viewport(0, 0, this.width, this.height);
+
+        this.renderer = new BasicRenderer('basic-vert',
+                                          'basic-frag');
+
+        this.projection = new MatrixStack();
+        mat4.ortho(-this.width / 2, this.width / 2,
+                   this.height / 2, -this.height / 2,
+                   -1, 1, this.projection.matrix);
+        this.renderer.setUniform('uProjectionMatrix',
+                                 this.projection.matrix);
+
+        this.modelview = new MatrixStack();
+        this.renderer.setUniform('uModelviewMatrix',
+                                 this.modelview.matrix);
 
 
-function webGLStart() {
-    PhiloGL('siren-song', {
-        context: {
-            antialias: false
-        },
-        onError: function() {
-            alert('There was an error creating the app.');
-        },
+        this.keys = {};
 
-        onLoad: function(app) {
-            // Ortho camera
-            var gl = app.gl;
+        this.audiolet = new Audiolet();
+        this.scale = new MajorScale();
+        this.rootFrequency = 16.352;
+        this.delay = new FeedbackDelay(this.audiolet, 0.9, 0.2);
+        this.reverb = new Reverb(this.audiolet, 0.9, 1, 0.5);
+        this.crusher = new BitCrusher(this.audiolet, 8);
+        this.delay.connect(this.reverb);
+        this.reverb.connect(this.crusher);
+        this.crusher.connect(this.audiolet.output);
 
-            app.width = app.canvas.width;
-            app.height = app.canvas.height;
+        this.particleSystem = new ParticleSystem();
 
-            app.frameCount = 0;
+        this.cloud = new Cloud(this);
 
-            gl.clearColor(0, 0, 0, 1);
-            gl.enable(gl.BLEND);
-            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        this.level = new Level(this);
 
-            gl.viewport(0, 0, app.width, app.height);
-            app.camera.projection.ortho(-app.width / 2,
-                                        app.width / 2,
-                                        app.height / 2,
-                                        -app.height / 2, -1, 1);
-            app.camera.modelView.id();
+        this.goodGuy = new GoodGuy(this);
 
-            app.keys = new Array(512);
+        this.sirens = [];
 
-            app.audiolet = new Audiolet();
-            app.scale = new MajorScale();
-            app.rootFrequency = 16.352;
-            app.delay = new FeedbackDelay(app.audiolet, 0.9, 0.2);
-            app.reverb = new Reverb(app.audiolet, 0.9, 1, 0.5);
-            app.crusher = new BitCrusher(app.audiolet, 8);
-            app.delay.connect(app.reverb);
-            app.reverb.connect(app.crusher);
-            app.crusher.connect(app.audiolet.output);
+        this.score = new Score(this);
 
-            app.particleSystem = new ParticleSystem();
+        this.ui = new UI(this);
 
-            app.cloud = new Cloud(app);
+        this.draw();
+        this.ui.startCountdown();
+    }
+    extend(SirenSong, App);
+    implement(SirenSong, KeyEvents);
 
-            app.level = new Level(app);
-
-            app.goodGuy = new GoodGuy(app);
-
-            app.sirens = [];
-
-            app.score = new Score(app);
-
-            app.ui = new UI(app);
-
-            app.paused = true;
-            draw();
-            app.ui.startCountdown();
-
-            function handleKeys() {
-                if (app.keys[37] || app.keys[65]) {  // Left or A
-                    var dx = Math.min(0.15 + 4E-6 * app.score.score, 0.5);
-                    app.goodGuy.particle.velocity.x -= dx;
-                }
-                if (app.keys[39] || app.keys[68]) { // Right or D
-                    var dx = Math.min(0.15 + 4E-6 * app.score.score, 0.5);
-                    app.goodGuy.particle.velocity.x += dx;
-                }
-            }
-
-            function addSirens() {
-                if (Math.random() > 0.98) {
-                    app.sirens.push(new SpiralSiren(app));
-                }
-                /*
-                if (!app.sirens.length) {
-                    app.sirens.push(new Siren(app));
-                }
-                */
-            }
-
-            function draw() {
-                handleKeys();
-                app.particleSystem.tick();
-                app.level.update();
-
-                addSirens();
-
-                for (var i = 0; i < app.sirens.length; i++) {
-                    app.sirens[i].update();
-                }
-
-                app.goodGuy.update();
-
-                app.cloud.update();
-
-                app.ui.updateScore();
-
-                gl.clear(gl.COLOR_BUFFER_BIT);
-                app.scene.render();
-
-                if (!app.paused) {
-                    PhiloGL.Fx.requestAnimationFrame(draw);
-                }
-                app.frameCount += 1;
-            }
-
-            app.run = function() {
-                PhiloGL.Fx.requestAnimationFrame(draw);
-                this.paused = false;
-            };
-
-            app.stop = function() {
-                this.paused = true;
-            };
-        },
-
-        events: {
-            onKeyDown: function(event) {
-                this.keys[event.code] = true;
-            },
-
-            onKeyUp: function(event) {
-                this.keys[event.event.keyCode] = false;
-            }
+    SirenSong.prototype.handleKeys = function() {
+        if (this.keys.left || this.keys.a) {
+            var dx = Math.min(0.15 + 4E-6 * this.score.score, 0.5);
+            this.goodGuy.particle.velocity[0] -= dx;
         }
-    });
-}
+        if (this.keys.right || this.keys.d) {
+            var dx = Math.min(0.15 + 4E-6 * this.score.score, 0.5);
+            this.goodGuy.particle.velocity[0] += dx;
+        }
+    };
+
+    SirenSong.prototype.addSirens = function() {
+        if (Math.random() > 0.98) {
+            this.sirens.push(new SpiralSiren(this));
+        }
+        /*
+        if (!this.sirens.length) {
+            this.sirens.push(new Siren(this));
+        }
+        */
+    };
+
+    SirenSong.prototype.draw = function() {
+        this.handleKeys();
+        this.particleSystem.tick();
+        this.level.update();
+
+        this.addSirens();
+
+        for (var i = 0; i < this.sirens.length; i++) {
+            this.sirens[i].update();
+        }
+
+        this.goodGuy.update();
+
+        this.cloud.update();
+
+        this.ui.updateScore();
+
+        this.clear([0, 0, 0, 1]);
+        this.renderer.setUniform('uModelviewMatrix',
+                                 this.modelview.matrix);
+        this.level.draw();
+        this.cloud.draw();
+        for (var i=0; i<this.sirens.length; i++) {
+            this.sirens[i].draw();
+        }
+        this.goodGuy.draw();
+    };
+
+    SirenSong.prototype.keyPressed = function(key) {
+        this.keys[key] = true;
+    };
+
+    SirenSong.prototype.keyReleased = function(key) {
+        this.keys[key] = false;
+    };
+
+    window.app = new SirenSong(document.getElementById('main'), {
+                                   width: 800,
+                                   height: 600,
+                                   antialias: false}
+                              );
+};

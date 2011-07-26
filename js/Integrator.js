@@ -15,19 +15,13 @@ Integrator.prototype.step = function(t) {
         var velocity = p.velocity;
         var force = p.force;
 
-        /*
-        PhiloGL.Vec3.$add(position, velocity);
-        PhiloGL.Vec3.$add(position, PhiloGL.Vec3.scale(force, 2.5));
-        PhiloGL.Vec3.$add(velocity, force);
-        */
-        // Do things the old-fashioned way
-        position.x += velocity.x + force.x * 2.5;
-        position.y += velocity.y + force.y * 2.5;
-        position.z += velocity.z + force.z * 2.5;
+        position[0] += velocity[0] + force[0] * 2.5;
+        position[1] += velocity[1] + force[1] * 2.5;
+        position[2] += velocity[2] + force[2] * 2.5;
 
-        velocity.x += force.x;
-        velocity.y += force.y;
-        velocity.z += force.z;
+        velocity[0] += force[0];
+        velocity[1] += force[1];
+        velocity[2] += force[2];
 
         p.age += t;
     }

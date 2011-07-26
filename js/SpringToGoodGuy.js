@@ -14,11 +14,6 @@ SpringToGoodGuy.prototype.toString = function() {
            '\nrestLength: ' + this.restLength;
 };
 
-SpringToGoodGuy.prototype.currentLength = function() {
-    return PhiloGL.Vec3.distTo(this.a.position, this.b.position);
-};
-
-
 SpringToGoodGuy.prototype.apply = function() {
     var a = this.a;
     var b = this.b;
@@ -26,21 +21,23 @@ SpringToGoodGuy.prototype.apply = function() {
     var springConstant = this.springConstant;
     var damping = this.damping;
 
-    var a2b = PhiloGL.Vec3.sub(a.position, b.position);
-    var a2bDistance = PhiloGL.Vec3.norm(a2b);
+    var a2b = vec3.create();
+    vec3.subtract(a.position, b.position, a2b);
+    var a2bDistance = vec3.length(a2b);
 
     if (a2bDistance == 0) {
-        PhiloGL.Vec3.set(a2b, 0, 0, 0);
+        vec3.set([0, 0, 0], a2b);
     } else {
-        PhiloGL.Vec3.$scale(a2b, 1 / a2bDistance);
+        vec3.scale(a2b, 1 / a2bDistance);
     }
 
     var springForce = -(a2bDistance - restLength) * springConstant;
-    var vA2b = PhiloGL.Vec3.sub(a.velocity, b.velocity);
-    var dampingForce = -damping * PhiloGL.Vec3.dot(a2b, vA2b);
+    var vA2b = vec3.create();
+    vec3.subtract(a.velocity, b.velocity, vA2b);
+    var dampingForce = -damping * vec3.dot(a2b, vA2b);
     var r = springForce + dampingForce;
 
-    PhiloGL.Vec3.$scale(a2b, r);
+    vec3.scale(a2b, r);
 
-    PhiloGL.Vec3.$add(b.force, PhiloGL.Vec3.neg(a2b));
+    vec3.add(b.force, vec3.negate(a2b));
 };

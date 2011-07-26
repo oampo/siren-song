@@ -28,7 +28,7 @@ ParticleSystem.prototype.clearForces = function() {
     var particles = this.particles;
     var numberOfParticles = particles.length;
     for (var i = 0; i < numberOfParticles; i++) {
-        PhiloGL.Vec3.set(particles[i].force, 0, 0, 0);
+        vec3.set([0, 0, 0], particles[i].force);
     }
 };
 

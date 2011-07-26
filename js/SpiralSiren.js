@@ -11,9 +11,9 @@ SpiralSiren.prototype.createParticles = function() {
         var angle = this.phase + i * 2 * Math.PI / this.numberOfOutputs;
         var particle = new Particle(1);
         this.app.cloud.particleSystem.particles.push(particle);
-        PhiloGL.Vec3.setVec3(particle.position, this.particle.position);
-        particle.velocity.x = Math.sin(angle);
-        particle.velocity.y = this.particle.velocity.y + Math.cos(angle);
+        vec3.set(this.particle.position, particle.position);
+        particle.velocity[0] = Math.sin(angle);
+        particle.velocity[1] = this.particle.velocity[1] + Math.cos(angle);
     }
     this.phase += this.frequency * 2 * Math.PI;
 };

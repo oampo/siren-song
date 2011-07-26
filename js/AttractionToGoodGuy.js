@@ -35,22 +35,23 @@ AttractionToGoodGuy.prototype.apply = function() {
     var distanceMinSquared = this.distanceMinSquared;
     var distanceMaxSquared = this.distanceMaxSquared;
 
-    var a2b = PhiloGL.Vec3.sub(a.position, b.position);
-    var a2bDistanceSquared = PhiloGL.Vec3.normSq(a2b);
+    var a2b = vec3.create();
+    vec3.subtract(a.position, b.position, a2b);
+    var a2bDistance = vec3.length(a2b);
+    var a2bDistanceSquared = Math.pow(a2bDistance, 2);
 
     if (a2bDistanceSquared < distanceMaxSquared) {
         if (a2bDistanceSquared < distanceMinSquared) {
             a2bDistanceSquared = distanceMinSquared;
         }
 
-        var force = k * a.mass * b.mass / a2bDistanceSquared,
-            length = Math.sqrt(a2bDistanceSquared);
+        var force = k * a.mass * b.mass / a2bDistanceSquared;
 
-        PhiloGL.Vec3.$scale(a2b, 1 / length);
+        vec3.scale(a2b, 1 / a2bDistance);
 
-        PhiloGL.Vec3.$scale(a2b, force);
+        vec3.scale(a2b, force);
 
-        PhiloGL.Vec3.$add(b.force, a2b);
+        vec3.add(b.force, a2b);
     }
 };
 

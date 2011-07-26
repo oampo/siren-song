@@ -10,61 +10,74 @@ var Siren = function(app) {
     this.frequencyPattern = null;
     this.octave = null;
 
-    var yPos = app.height / 2;
+    var yPos = app.height / 2 - 1;
     var sides = this.app.level.getSides(yPos);
     var xPos = sides[0] + this.radius * 2;
     xPos += (sides[1] - sides[0] - this.radius * 2) * Math.random();
     this.particle = new Particle(1);
-    this.particle.position.x = xPos;
-    this.particle.position.y = yPos;
-    this.particle.velocity.y = -3;
+    this.particle.position[0] = xPos;
+    this.particle.position[1] = yPos;
+    this.particle.velocity[1] = -3;
     this.app.particleSystem.particles.push(this.particle);
 
     this.attraction = new AttractionToGoodGuy(this.app.goodGuy.particle,
                                               this.particle, 800, 20, 40);
     this.app.particleSystem.forces.push(this.attraction);
 
-    var vertices = [];
-    var colors = [];
+
     var numberOfPoints = 40;
     var numberOfSpirals = 2;
     var spacing = 3;
+
+    this.mesh = new Mesh(numberOfPoints, gl.LINE_STRIP, gl.STATIC_DRAW,
+                         gl.STATIC_DRAW);
+    var vertexBuffer = this.mesh.vertexBuffer.array;
+    var colorBuffer = this.mesh.colorBuffer.array;
+
     for (var i = 0; i < numberOfPoints; i++) {
         var theta = numberOfSpirals * i * 2 * Math.PI / numberOfPoints;
-        vertices.push(5 * theta * Math.sin(theta) / (2 * Math.PI));
-        vertices.push(5 * theta * Math.cos(theta) / (2 * Math.PI));
-        vertices.push(0);
-        colors.push(1, 1, 1, 1);
-    }
+        vertexBuffer[i * 3 + 0] = 5 * theta * Math.sin(theta) / (2 * Math.PI);
+        vertexBuffer[i * 3 + 1] = 5 * theta * Math.cos(theta) / (2 * Math.PI);
+        vertexBuffer[i * 3 + 2] = 0;
 
-    this.model = new PhiloGL.O3D.Model({vertices: vertices,
-                                        colors: colors,
-                                        drawType: 'LINE_STRIP'});
-    this.app.scene.add(this.model);
+        colorBuffer[i * 4 + 0] = 1;
+        colorBuffer[i * 4 + 1] = 1;
+        colorBuffer[i * 4 + 2] = 1;
+        colorBuffer[i * 4 + 3] = 1;
+    }
+    this.mesh.vertexBuffer.setValues();
+    this.mesh.colorBuffer.setValues();
+    this.transformation = new Transformation();
 };
 
 Siren.prototype.update = function() {
-    this.model.rotation.z -= 0.3;
-    this.model.update();
+/*    this.model.rotation.z -= 0.3;
+    this.model.update(); */
 
     var position = this.particle.position;
-    var sides = this.app.level.getSides(position.y);
-    if (position.y < -this.app.height / 2 ||
-        position.x < sides[0] ||
-        position.x > sides[1]) {
+    var sides = this.app.level.getSides(position[1]);
+    if (position[1] < -this.app.height / 2 ||
+        position[0] < sides[0] ||
+        position[0] > sides[1]) {
         this.remove();
     }
     else {
-        PhiloGL.Vec3.setVec3(this.model.position, this.particle.position);
-        this.model.update();
+        vec3.set(this.particle.position, this.transformation.position);
         if (this.connected) {
             this.createParticles();
         }
     }
 };
 
+Siren.prototype.draw = function() {
+    this.app.modelview.pushMatrix();
+    this.transformation.apply(this.app.modelview.matrix);
+    this.app.renderer.setUniform('uModelviewMatrix', this.app.modelview.matrix);
+    this.app.renderer.render(this.mesh);
+    this.app.modelview.popMatrix();
+};
+
 Siren.prototype.remove = function() {
-    this.app.scene.remove(this.model);
     this.app.particleSystem.removeParticle(this.particle);
 
     var index = this.app.sirens.indexOf(this);
@@ -125,7 +138,6 @@ Siren.prototype.remove = function() {
             this.synth.sirenEnv.gate.setValue(0);
         }
         else {
-            console.log('me');
             this.synth.removeWithEvent();
         }
     }

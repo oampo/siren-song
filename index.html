@@ -13,11 +13,40 @@
         <link rel="stylesheet" href="css/960/960.css" />
         <link rel="stylesheet" href="css/main.css" />
         
+        <script src="../webglet.git/src/glmatrix/glMatrix-0.9.4.js"></script>
+        <script src="../webglet.git/src/webglet/WebGLet.js"></script>
+        <script src="../webglet.git/src/mixins/KeyEvents.js"></script>
         <script src="../audiolet/trunk/src/audiolet/Audiolet.js"></script>
-        <script src="../philogl/build/PhiloGL.js"></script>
         <script src="js/compiled/SirenSong.js"></script>
+
+        <script id="basic-vert" type="x-shader/x-vertex">
+            attribute vec3 aVertex;
+            attribute vec4 aColor;
+
+            uniform mat4 uModelviewMatrix;
+            uniform mat4 uProjectionMatrix;
+            
+            varying vec4 vColor;
+
+            void main(void) {
+                gl_Position = uProjectionMatrix * uModelviewMatrix * vec4(aVertex, 1.0);
+                vColor = aColor;
+            }
+        </script>
+
+        <script id="basic-frag" type="x-shader/x-fragment">
+            #ifdef GL_ES
+            precision highp float;
+            #endif
+
+            varying vec4 vColor;
+
+            void main(void) {
+                gl_FragColor = vColor;
+            }
+        </script>
     </head>
-    <body onload="webGLStart();">
+    <body>
         <div id="wrapper">
             <div id="header"><h1>SIREN SONG</h1></div>
             <div id="main">
@@ -27,7 +56,7 @@
                     <div id="high-score">0</div>
                     <div id="countdown"></div>
                 </div>
-                <canvas id="siren-song" width="800px" height="600px"></canvas>
+<!--                <canvas id="siren-song" width="800px" height="600px"></canvas> -->
             </div>
             <div id="push"></div>
         </div>

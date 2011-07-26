@@ -8,53 +8,66 @@ var GoodGuy = function(app) {
     var sides = this.app.level.getSides(0);
     var middle = (sides[0] + sides[1]) / 2;
     this.particle = new Particle(1);
-    this.particle.position.x = middle;
+    this.particle.position[0] = middle;
     this.app.particleSystem.particles.push(this.particle);
 
-    var vertices = [];
-    var colors = [];
     var numberOfPoints = 80;
     var numberOfSpirals = 3;
     var spacing = 3;
+
+    this.mesh = new Mesh(numberOfPoints, gl.LINE_STRIP, gl.STATIC_DRAW,
+                         gl.STATIC_DRAW);
+    var vertexBuffer = this.mesh.vertexBuffer.array;
+    var colorBuffer = this.mesh.colorBuffer.array;
+
     for (var i = 0; i < numberOfPoints; i++) {
         var theta = numberOfSpirals * i * 2 * Math.PI / numberOfPoints;
-        vertices.push(5 * theta * Math.sin(theta) / (2 * Math.PI));
-        vertices.push(5 * theta * Math.cos(theta) / (2 * Math.PI));
-        vertices.push(0);
-        colors.push(1, 1, 1, 1);
+        vertexBuffer[i * 3 + 0] = 5 * theta * Math.sin(theta) / (2 * Math.PI);
+        vertexBuffer[i * 3 + 1] = 5 * theta * Math.cos(theta) / (2 * Math.PI);
+        vertexBuffer[i * 3 + 2] = 0;
+        colorBuffer[i * 4 + 0] = 1;
+        colorBuffer[i * 4 + 1] = 1;
+        colorBuffer[i * 4 + 2] = 1;
+        colorBuffer[i * 4 + 3] = 1;
     }
+    this.mesh.vertexBuffer.setValues();
+    this.mesh.colorBuffer.setValues();
 
-    this.model = new PhiloGL.O3D.Model({vertices: vertices,
-                                        colors: colors,
-                                        drawType: 'LINE_STRIP'});
-    this.app.scene.add(this.model);
-
+    this.transformation = new Transformation();
 };
 
 GoodGuy.prototype.update = function() {
     var sides = this.app.level.getSides(0);
-    this.model.rotation.z -= 0.3;
-    this.model.update();
+/*    this.model.rotation.z -= 0.3;
+    this.model.update(); */
 
-    if (this.particle.position.x < -this.app.width / 2 ||
-        this.particle.position.x > this.app.width / 2 ||
-        this.particle.position.y < -this.app.height / 2 ||
-        this.particle.position.y > this.app.height / 2) {
+    if (this.particle.position[0] < -this.app.width / 2 ||
+        this.particle.position[0] > this.app.width / 2 ||
+        this.particle.position[1] < -this.app.height / 2 ||
+        this.particle.position[1] > this.app.height / 2) {
         this.app.stop();
-        this.particle.position.x = (sides[0] + sides[1]) / 2;
-        this.particle.velocity.x = 0;
+        this.particle.position[0] = (sides[0] + sides[1]) / 2;
+        this.particle.velocity[0] = 0;
         this.app.ui.startCountdown();
     }
 
-    if (this.particle.position.x < sides[0] ||
-        this.particle.position.x > sides[1]) {
+    if (this.particle.position[0] < sides[0] ||
+        this.particle.position[0] > sides[1]) {
         this.app.score.decrease();
 
     }
 
     this.handleSirenCollisions();
-    PhiloGL.Vec3.setVec3(this.model.position, this.particle.position);
-    this.model.update();
+
+    vec3.set(this.particle.position, this.transformation.position);
+};
+
+GoodGuy.prototype.draw = function() {
+    this.app.modelview.pushMatrix();
+    this.transformation.apply(this.app.modelview.matrix);
+    this.app.renderer.setUniform('uModelviewMatrix', this.app.modelview.matrix);
+    this.app.renderer.render(this.mesh);
+    this.app.modelview.popMatrix();
 };
 
 GoodGuy.prototype.handleSirenCollisions = function() {
@@ -63,11 +76,14 @@ GoodGuy.prototype.handleSirenCollisions = function() {
     var position = this.particle.position;
     for (var i = 0; i < numberOfSirens; i++) {
         var siren = sirens[i];
-        if (!siren.connected &&
-            PhiloGL.Vec3.distTo(position, siren.particle.position) <
-            this.radius + siren.radius) {
-            this.attach(siren);
-            this.app.multiplier += 1;
+        if (!siren.connected) {
+            var diff = vec3.create();
+            vec3.subtract(position, siren.particle.position, diff);
+            var distance = vec3.length(diff);
+            if (distance < this.radius + siren.radius) {
+                this.attach(siren);
+                this.app.multiplier += 1;
+            }
         }
     }
 };

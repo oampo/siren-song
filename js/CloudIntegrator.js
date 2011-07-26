@@ -11,9 +11,9 @@ CloudIntegrator.prototype.step = function(t) {
         var velocity = p.velocity;
 
         // Do things the old-fashioned way
-        position.x += velocity.x;
-        position.y += velocity.y;
-        position.z += velocity.z;
+        position[0] += velocity[0];
+        position[1] += velocity[1];
+        position[2] += velocity[2];
 
         p.age += t;
     }

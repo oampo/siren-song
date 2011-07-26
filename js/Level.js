@@ -8,12 +8,10 @@ var Level = function(app) {
     this.width = this.app.width;
     this.height = this.app.height;
 
-    this.particle = new Particle(1);
-    this.particle.velocity.y = -3;
-    this.app.particleSystem.particles.push(this.particle);
-    PhiloGL.Vec3.set(this.particle.velocity, 0, -3, 0);
-    this.lastYPos = 0;
-    this.zeroPos = 0;
+    this.velocity = 3;
+
+    this.zeroIndex = 0; // Index of the top of the screen
+    this.sideIndex = 0;
 
     this.simplex = new SimplexNoise();
 
@@ -22,6 +20,9 @@ var Level = function(app) {
 
     this.leftColors = new Array(this.height);
     this.rightColors = new Array(this.height);
+
+    this.numberOfLeftColors = 0;
+    this.numberOfRightColors = 0;
 
     this.initialOffset = 0.27;
     this.offsetPerPoint = 1 / 400000;
@@ -51,44 +52,24 @@ var Level = function(app) {
         fastStep: 0.01
     };
 
-    for (var i = 0; i < this.height; i++) {
-        this.left[i] = this.calculateSide(i, this.leftDetails);
-        this.right[i] = this.calculateSide(i, this.rightDetails);
+    for (var i=0; i<this.height; i++) {
+        this.left[i] = this.calculateSide(this.sideIndex, this.leftDetails);
+        this.right[i] = this.calculateSide(this.sideIndex, this.rightDetails);
+        this.sideIndex += 1;
         this.leftColors[i] = null;
         this.rightColors[i] = null;
     }
 
-    this.leftModel = new PhiloGL.O3D.Model({
-        id: 'Left side',
-        dynamic: true,
-        drawType: 'LINE_STRIP'
-    });
-    this.leftModel.dynamic = true;
-    this.app.scene.add(this.leftModel);
+    this.leftMesh = new Mesh(this.height, gl.LINE_STRIP, gl.STREAM_DRAW,
+                             gl.STATIC_DRAW);
 
-    this.rightModel = new PhiloGL.O3D.Model({
-        id: 'Right side',
-        dynamic: true,
-        drawType: 'LINE_STRIP'
-    });
-    this.rightModel.dynamic = true;
-    this.app.scene.add(this.rightModel);
+    this.rightMesh = new Mesh(this.height, gl.LINE_STRIP, gl.STREAM_DRAW,
+                              gl.STATIC_DRAW);
 
-    this.leftColorModel = new PhiloGL.O3D.Model({
-        id: 'Left colors',
-        dynamic: true,
-        drawType: 'LINES'
-    });
-    this.leftColorModel.dynamic = true;
-    this.app.scene.add(this.leftColorModel);
-
-    this.rightColorModel = new PhiloGL.O3D.Model({
-        id: 'Right colors',
-        dynamic: true,
-        drawType: 'LINES'
-    });
-    this.rightColorModel.dynamic = true;
-    this.app.scene.add(this.rightColorModel);
+    this.leftColorMesh = new Mesh(this.height * 2, gl.LINES, gl.STREAM_DRAW,
+                                  gl.STREAM_DRAW);
+    this.rightColorMesh = new Mesh(this.height * 2, gl.LINES, gl.STREAM_DRAW,
+                                  gl.STREAM_DRAW);
 };
 
 Level.prototype.update = function() {
@@ -128,22 +109,18 @@ Level.prototype.addToBottom = function() {
 
     // Loop through pixels which have fallen off screen and calculate new
     // values for them
-    var yPos = this.particle.position.y;
-    var loopYPos = this.lastYPos;
-    while (loopYPos > yPos) {
-        var writePosition = Math.mod(loopYPos, height);
-        writePosition = Math.floor(writePosition);
-        left[writePosition] = this.calculateSide(loopYPos,
-                                                 this.leftDetails);
-        right[writePosition] = this.calculateSide(loopYPos,
-                                                  this.rightDetails);
-        leftColors[writePosition] = null;
-        rightColors[writePosition] = null;
-        loopYPos -= 1;
-    }
+    for (var i=0; i<this.velocity; i++) {
+        left[this.zeroIndex] = this.calculateSide(this.sideIndex, this.leftDetails);
+        right[this.zeroIndex] = this.calculateSide(this.sideIndex, this.rightDetails);
+        leftColors[this.zeroIndex] = null;
+        rightColors[this.zeroIndex] = null;
+        this.sideIndex += 1;
 
-    this.lastYPos = yPos;
-    this.zeroPos = Math.floor(Math.mod(this.lastYPos, height));
+        this.zeroIndex += 1;
+        if (this.zeroIndex >= this.height) {
+            this.zeroIndex -= this.height;
+        }
+    }
 };
 
 Level.prototype.updateModels = function() {
@@ -155,56 +132,107 @@ Level.prototype.updateModels = function() {
     var leftColors = this.leftColors;
     var rightColors = this.rightColors;
 
-    var leftVertexArray = [];
-    var leftColorArray = [];
-    var rightVertexArray = [];
-    var rightColorArray = [];
+    var leftVertexBuffer = this.leftMesh.vertexBuffer.array;
+    var leftColorBuffer = this.leftMesh.colorBuffer.array;
+    var rightVertexBuffer = this.rightMesh.vertexBuffer.array;
+    var rightColorBuffer = this.rightMesh.colorBuffer.array;
 
-    var leftColorVertexArray = [];
-    var leftColorColorArray = [];
-    var rightColorVertexArray = [];
-    var rightColorColorArray = [];
+    var leftColorVertexBuffer = this.leftColorMesh.vertexBuffer.array;
+    var leftColorColorBuffer = this.leftColorMesh.colorBuffer.array;
+    var rightColorVertexBuffer = this.rightColorMesh.vertexBuffer.array;
+    var rightColorColorBuffer = this.rightColorMesh.colorBuffer.array;
 
-    var startPosition = Math.floor(Math.mod(this.lastYPos, height));
+    var leftCount = 0;
+    var rightCount = 0;
+
+    var zeroIndex = this.zeroIndex;
 
     for (var i = 0; i < height; i++) {
-        var readIndex = (startPosition + i + 1) % height;
-        var yPos = height / 2 - i;
+        var readIndex = (zeroIndex + i) % height;
 
         var leftVertex = left[readIndex];
         var rightVertex = right[readIndex];
 
-        leftVertexArray.push(leftVertex, yPos, 0);
-        rightVertexArray.push(rightVertex, yPos, 0);
-        leftColorArray.push(1, 1, 1, 1);
-        rightColorArray.push(1, 1, 1, 1);
+        leftVertexBuffer[i * 3 + 0] = leftVertex;
+        leftVertexBuffer[i * 3 + 1] = i - height / 2;
+        leftVertexBuffer[i * 3 + 2] = 0;
+
+        rightVertexBuffer[i * 3 + 0] = rightVertex;
+        rightVertexBuffer[i * 3 + 1] = i - height / 2;
+        rightVertexBuffer[i * 3 + 2] = 0;
+
+        leftColorBuffer[i * 4 + 0] = 1;
+        leftColorBuffer[i * 4 + 1] = 1;
+        leftColorBuffer[i * 4 + 2] = 1;
+        leftColorBuffer[i * 4 + 3] = 1;
+
+        rightColorBuffer[i * 4 + 0] = 1;
+        rightColorBuffer[i * 4 + 1] = 1;
+        rightColorBuffer[i * 4 + 2] = 1;
+        rightColorBuffer[i * 4 + 3] = 1;
 
         var leftColor = leftColors[readIndex];
         var rightColor = rightColors[readIndex];
-        if (leftColor != null) {
-            leftColorVertexArray.push(-width / 2, yPos, 0,
-                                      leftVertex - 1, yPos, 0);
-            Array.prototype.push.apply(leftColorColorArray, leftColor);
-            Array.prototype.push.apply(leftColorColorArray, leftColor);
-        }
 
+        if (leftColor != null) {
+            leftColorVertexBuffer[leftCount * 6 + 0] = -width / 2;
+            leftColorVertexBuffer[leftCount * 6 + 1] =  i - height / 2;
+            leftColorVertexBuffer[leftCount * 6 + 2] = 0;
+            leftColorVertexBuffer[leftCount * 6 + 3] = leftVertex - 1;
+            leftColorVertexBuffer[leftCount * 6 + 4] = i - height / 2;
+            leftColorVertexBuffer[leftCount * 6 + 5] = 0;
+
+            leftColorColorBuffer[leftCount * 8 + 0] = leftColor[0];
+            leftColorColorBuffer[leftCount * 8 + 1] = leftColor[1];
+            leftColorColorBuffer[leftCount * 8 + 2] = leftColor[2];
+            leftColorColorBuffer[leftCount * 8 + 3] = leftColor[3];
+            leftColorColorBuffer[leftCount * 8 + 4] = leftColor[0];
+            leftColorColorBuffer[leftCount * 8 + 5] = leftColor[1];
+            leftColorColorBuffer[leftCount * 8 + 6] = leftColor[2];
+            leftColorColorBuffer[leftCount * 8 + 7] = leftColor[3];
+
+            leftCount += 1;
+        }
         if (rightColor != null) {
-            rightColorVertexArray.push(rightVertex + 1, yPos, 0,
-                                       width / 2, yPos, 0);
-            Array.prototype.push.apply(rightColorColorArray, rightColor);
-            Array.prototype.push.apply(rightColorColorArray, rightColor);
+            rightColorVertexBuffer[rightCount * 6 + 0] = rightVertex + 1;
+            rightColorVertexBuffer[rightCount * 6 + 1] = i - height / 2;
+            rightColorVertexBuffer[rightCount * 6 + 2] = 0;
+            rightColorVertexBuffer[rightCount * 6 + 3] = width / 2;
+            rightColorVertexBuffer[rightCount * 6 + 4] = i - height / 2;
+            rightColorVertexBuffer[rightCount * 6 + 5] = 0;
+                
+            rightColorColorBuffer[rightCount * 8 + 0] = rightColor[0];
+            rightColorColorBuffer[rightCount * 8 + 1] = rightColor[1];
+            rightColorColorBuffer[rightCount * 8 + 2] = rightColor[2];
+            rightColorColorBuffer[rightCount * 8 + 3] = rightColor[3];
+            rightColorColorBuffer[rightCount * 8 + 4] = rightColor[0];
+            rightColorColorBuffer[rightCount * 8 + 5] = rightColor[1];
+            rightColorColorBuffer[rightCount * 8 + 6] = rightColor[2];
+            rightColorColorBuffer[rightCount * 8 + 7] = rightColor[3];
+
+            rightCount += 1;
         }
     }
-    this.leftModel.vertices = leftVertexArray;
-    this.rightModel.vertices = rightVertexArray;
-    this.leftModel.colors = leftColorArray;
-    this.rightModel.colors = rightColorArray;
 
-    this.leftColorModel.vertices = leftColorVertexArray;
-    this.rightColorModel.vertices = rightColorVertexArray;
-    this.leftColorModel.colors = leftColorColorArray;
-    this.rightColorModel.colors = rightColorColorArray;
+    this.leftMesh.vertexBuffer.setValues();
+    this.leftMesh.colorBuffer.setValues();
+    this.rightMesh.vertexBuffer.setValues();
+    this.rightMesh.colorBuffer.setValues();
+    this.leftColorMesh.vertexBuffer.setValues();
+    this.leftColorMesh.colorBuffer.setValues();
+    this.rightColorMesh.vertexBuffer.setValues();
+    this.rightColorMesh.colorBuffer.setValues();
+
+    this.numberOfLeftColors = leftCount;
+    this.numberOfRightColors = rightCount;
 };
+
+Level.prototype.draw = function() {
+    this.app.renderer.render(this.leftMesh);
+    this.app.renderer.render(this.rightMesh);
+    this.app.renderer.render(this.leftColorMesh, 0, this.numberOfLeftColors * 2);
+    this.app.renderer.render(this.rightColorMesh, 0, this.numberOfRightColors * 2);
+}
 
 Level.prototype.calculateSide = function(yPos, details) {
     var x = 0;
@@ -221,15 +249,15 @@ Level.prototype.calculateSide = function(yPos, details) {
 };
 
 Level.prototype.getSides = function(yPos) {
-    var index = this.yPosToIndex(yPos);
+    var distanceFromTop = yPos + this.height / 2;
+    var index = Math.floor(this.zeroIndex + distanceFromTop) % this.height;
     var left = this.left[index];
     var right = this.right[index];
     return [left, right];
 };
 
 Level.prototype.yPosToIndex = function(yPos) {
-    var height = this.height;
-    yPos = this.zeroPos + 2 + height / 2 - yPos;
-    yPos = Math.floor(yPos % height);
-    return yPos;
+    var distanceFromTop = yPos + this.height / 2;
+    var index = Math.floor(this.zeroIndex + distanceFromTop) % this.height;
+    return index;
 };

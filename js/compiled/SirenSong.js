@@ -35,22 +35,23 @@ AttractionToGoodGuy.prototype.apply = function() {
     var distanceMinSquared = this.distanceMinSquared;
     var distanceMaxSquared = this.distanceMaxSquared;
 
-    var a2b = PhiloGL.Vec3.sub(a.position, b.position);
-    var a2bDistanceSquared = PhiloGL.Vec3.normSq(a2b);
+    var a2b = vec3.create();
+    vec3.subtract(a.position, b.position, a2b);
+    var a2bDistance = vec3.length(a2b);
+    var a2bDistanceSquared = Math.pow(a2bDistance, 2);
 
     if (a2bDistanceSquared < distanceMaxSquared) {
         if (a2bDistanceSquared < distanceMinSquared) {
             a2bDistanceSquared = distanceMinSquared;
         }
 
-        var force = k * a.mass * b.mass / a2bDistanceSquared,
-            length = Math.sqrt(a2bDistanceSquared);
+        var force = k * a.mass * b.mass / a2bDistanceSquared;
 
-        PhiloGL.Vec3.$scale(a2b, 1 / length);
+        vec3.scale(a2b, 1 / a2bDistance);
 
-        PhiloGL.Vec3.$scale(a2b, force);
+        vec3.scale(a2b, force);
 
-        PhiloGL.Vec3.$add(b.force, a2b);
+        vec3.add(b.force, a2b);
     }
 };
 
@@ -67,9 +68,9 @@ CloudIntegrator.prototype.step = function(t) {
         var velocity = p.velocity;
 
         // Do things the old-fashioned way
-        position.x += velocity.x;
-        position.y += velocity.y;
-        position.z += velocity.z;
+        position[0] += velocity[0];
+        position[1] += velocity[1];
+        position[2] += velocity[2];
 
         p.age += t;
     }
@@ -82,18 +83,12 @@ var Cloud = function(app) {
     this.particleSystem = new ParticleSystem(0, 0);
     this.particleSystem.integrator = new CloudIntegrator(this.particleSystem);
 
-    this.model = new PhiloGL.O3D.Model({id: 'cloud',
-                                        dynamic: true,
-                                        drawType: 'POINTS'});
-    this.model.dynamic = true;
-    this.app.scene.add(this.model);
+    this.mesh = new Mesh(100, gl.POINTS,
+                          gl.STREAM_DRAW, gl.STREAM_DRAW);
 };
 
 Cloud.prototype.update = function() {
     this.particleSystem.tick();
-
-    var vertices = [];
-    var colors = [];
 
     var halfHeight = this.app.height / 2;
     var level = this.app.level;
@@ -101,18 +96,26 @@ Cloud.prototype.update = function() {
     var rightColors = level.rightColors;
     var score = this.app.score;
 
-    var push = Array.prototype.push;
-
     var particleSystem = this.particleSystem;
     var particles = particleSystem.particles;
     var numberOfParticles = particles.length;
+
+    if (numberOfParticles > this.mesh.numVertices) {
+        this.mesh = new Mesh(numberOfParticles * 3, gl.POINTS,
+                             gl.STREAM_DRAW, gl.STREAM_DRAW);
+    }
+
+    var vertexBuffer = this.mesh.vertexBuffer.array;
+    var colorBuffer = this.mesh.colorBuffer.array;
+
+    var count = 0;
     for (var i = 0; i < numberOfParticles; i++) {
         var index = numberOfParticles - i - 1;
         var particle = particles[index];
         var position = particle.position;
 
-        var xPos = position.x;
-        var yPos = position.y;
+        var xPos = position[0];
+        var yPos = position[1];
 
         var sides = level.getSides(yPos);
         var left = sides[0];
@@ -140,13 +143,24 @@ Cloud.prototype.update = function() {
             }
         }
         else {
-            vertices.push(xPos, yPos, 0);
-            push.apply(colors, color);
+            vertexBuffer[count * 3 + 0] = xPos;
+            vertexBuffer[count * 3 + 1] = yPos;
+            vertexBuffer[count * 3 + 2] = 0;
+            colorBuffer[count * 4 + 0] = color[0];
+            colorBuffer[count * 4 + 1] = color[1];
+            colorBuffer[count * 4 + 2] = color[2];
+            colorBuffer[count * 4 + 3] = color[3];
+            count += 1;
         }
     }
 
-    this.model.vertices = vertices;
-    this.model.colors = colors;
+    this.mesh.vertexBuffer.setValues();
+    this.mesh.colorBuffer.setValues();
+};
+
+Cloud.prototype.draw = function() {
+    this.app.renderer.render(this.mesh, 0,
+                             this.particleSystem.particles.length);
 };
 
 var Color = {};
@@ -216,53 +230,66 @@ var GoodGuy = function(app) {
     var sides = this.app.level.getSides(0);
     var middle = (sides[0] + sides[1]) / 2;
     this.particle = new Particle(1);
-    this.particle.position.x = middle;
+    this.particle.position[0] = middle;
     this.app.particleSystem.particles.push(this.particle);
 
-    var vertices = [];
-    var colors = [];
     var numberOfPoints = 80;
     var numberOfSpirals = 3;
     var spacing = 3;
+
+    this.mesh = new Mesh(numberOfPoints, gl.LINE_STRIP, gl.STATIC_DRAW,
+                         gl.STATIC_DRAW);
+    var vertexBuffer = this.mesh.vertexBuffer.array;
+    var colorBuffer = this.mesh.colorBuffer.array;
+
     for (var i = 0; i < numberOfPoints; i++) {
         var theta = numberOfSpirals * i * 2 * Math.PI / numberOfPoints;
-        vertices.push(5 * theta * Math.sin(theta) / (2 * Math.PI));
-        vertices.push(5 * theta * Math.cos(theta) / (2 * Math.PI));
-        vertices.push(0);
-        colors.push(1, 1, 1, 1);
+        vertexBuffer[i * 3 + 0] = 5 * theta * Math.sin(theta) / (2 * Math.PI);
+        vertexBuffer[i * 3 + 1] = 5 * theta * Math.cos(theta) / (2 * Math.PI);
+        vertexBuffer[i * 3 + 2] = 0;
+        colorBuffer[i * 4 + 0] = 1;
+        colorBuffer[i * 4 + 1] = 1;
+        colorBuffer[i * 4 + 2] = 1;
+        colorBuffer[i * 4 + 3] = 1;
     }
+    this.mesh.vertexBuffer.setValues();
+    this.mesh.colorBuffer.setValues();
 
-    this.model = new PhiloGL.O3D.Model({vertices: vertices,
-                                        colors: colors,
-                                        drawType: 'LINE_STRIP'});
-    this.app.scene.add(this.model);
-
+    this.transformation = new Transformation();
 };
 
 GoodGuy.prototype.update = function() {
     var sides = this.app.level.getSides(0);
-    this.model.rotation.z -= 0.3;
-    this.model.update();
+/*    this.model.rotation.z -= 0.3;
+    this.model.update(); */
 
-    if (this.particle.position.x < -this.app.width / 2 ||
-        this.particle.position.x > this.app.width / 2 ||
-        this.particle.position.y < -this.app.height / 2 ||
-        this.particle.position.y > this.app.height / 2) {
+    if (this.particle.position[0] < -this.app.width / 2 ||
+        this.particle.position[0] > this.app.width / 2 ||
+        this.particle.position[1] < -this.app.height / 2 ||
+        this.particle.position[1] > this.app.height / 2) {
         this.app.stop();
-        this.particle.position.x = (sides[0] + sides[1]) / 2;
-        this.particle.velocity.x = 0;
+        this.particle.position[0] = (sides[0] + sides[1]) / 2;
+        this.particle.velocity[0] = 0;
         this.app.ui.startCountdown();
     }
 
-    if (this.particle.position.x < sides[0] ||
-        this.particle.position.x > sides[1]) {
+    if (this.particle.position[0] < sides[0] ||
+        this.particle.position[0] > sides[1]) {
         this.app.score.decrease();
 
     }
 
     this.handleSirenCollisions();
-    PhiloGL.Vec3.setVec3(this.model.position, this.particle.position);
-    this.model.update();
+
+    vec3.set(this.particle.position, this.transformation.position);
+};
+
+GoodGuy.prototype.draw = function() {
+    this.app.modelview.pushMatrix();
+    this.transformation.apply(this.app.modelview.matrix);
+    this.app.renderer.setUniform('uModelviewMatrix', this.app.modelview.matrix);
+    this.app.renderer.render(this.mesh);
+    this.app.modelview.popMatrix();
 };
 
 GoodGuy.prototype.handleSirenCollisions = function() {
@@ -271,11 +298,14 @@ GoodGuy.prototype.handleSirenCollisions = function() {
     var position = this.particle.position;
     for (var i = 0; i < numberOfSirens; i++) {
         var siren = sirens[i];
-        if (!siren.connected &&
-            PhiloGL.Vec3.distTo(position, siren.particle.position) <
-            this.radius + siren.radius) {
-            this.attach(siren);
-            this.app.multiplier += 1;
+        if (!siren.connected) {
+            var diff = vec3.create();
+            vec3.subtract(position, siren.particle.position, diff);
+            var distance = vec3.length(diff);
+            if (distance < this.radius + siren.radius) {
+                this.attach(siren);
+                this.app.multiplier += 1;
+            }
         }
     }
 };
@@ -319,19 +349,13 @@ Integrator.prototype.step = function(t) {
         var velocity = p.velocity;
         var force = p.force;
 
-        /*
-        PhiloGL.Vec3.$add(position, velocity);
-        PhiloGL.Vec3.$add(position, PhiloGL.Vec3.scale(force, 2.5));
-        PhiloGL.Vec3.$add(velocity, force);
-        */
-        // Do things the old-fashioned way
-        position.x += velocity.x + force.x * 2.5;
-        position.y += velocity.y + force.y * 2.5;
-        position.z += velocity.z + force.z * 2.5;
+        position[0] += velocity[0] + force[0] * 2.5;
+        position[1] += velocity[1] + force[1] * 2.5;
+        position[2] += velocity[2] + force[2] * 2.5;
 
-        velocity.x += force.x;
-        velocity.y += force.y;
-        velocity.z += force.z;
+        velocity[0] += force[0];
+        velocity[1] += force[1];
+        velocity[2] += force[2];
 
         p.age += t;
     }
@@ -348,12 +372,10 @@ var Level = function(app) {
     this.width = this.app.width;
     this.height = this.app.height;
 
-    this.particle = new Particle(1);
-    this.particle.velocity.y = -3;
-    this.app.particleSystem.particles.push(this.particle);
-    PhiloGL.Vec3.set(this.particle.velocity, 0, -3, 0);
-    this.lastYPos = 0;
-    this.zeroPos = 0;
+    this.velocity = 3;
+
+    this.zeroIndex = 0; // Index of the top of the screen
+    this.sideIndex = 0;
 
     this.simplex = new SimplexNoise();
 
@@ -362,6 +384,9 @@ var Level = function(app) {
 
     this.leftColors = new Array(this.height);
     this.rightColors = new Array(this.height);
+
+    this.numberOfLeftColors = 0;
+    this.numberOfRightColors = 0;
 
     this.initialOffset = 0.27;
     this.offsetPerPoint = 1 / 400000;
@@ -391,44 +416,24 @@ var Level = function(app) {
         fastStep: 0.01
     };
 
-    for (var i = 0; i < this.height; i++) {
-        this.left[i] = this.calculateSide(i, this.leftDetails);
-        this.right[i] = this.calculateSide(i, this.rightDetails);
+    for (var i=0; i<this.height; i++) {
+        this.left[i] = this.calculateSide(this.sideIndex, this.leftDetails);
+        this.right[i] = this.calculateSide(this.sideIndex, this.rightDetails);
+        this.sideIndex += 1;
         this.leftColors[i] = null;
         this.rightColors[i] = null;
     }
 
-    this.leftModel = new PhiloGL.O3D.Model({
-        id: 'Left side',
-        dynamic: true,
-        drawType: 'LINE_STRIP'
-    });
-    this.leftModel.dynamic = true;
-    this.app.scene.add(this.leftModel);
+    this.leftMesh = new Mesh(this.height, gl.LINE_STRIP, gl.STREAM_DRAW,
+                             gl.STATIC_DRAW);
 
-    this.rightModel = new PhiloGL.O3D.Model({
-        id: 'Right side',
-        dynamic: true,
-        drawType: 'LINE_STRIP'
-    });
-    this.rightModel.dynamic = true;
-    this.app.scene.add(this.rightModel);
+    this.rightMesh = new Mesh(this.height, gl.LINE_STRIP, gl.STREAM_DRAW,
+                              gl.STATIC_DRAW);
 
-    this.leftColorModel = new PhiloGL.O3D.Model({
-        id: 'Left colors',
-        dynamic: true,
-        drawType: 'LINES'
-    });
-    this.leftColorModel.dynamic = true;
-    this.app.scene.add(this.leftColorModel);
-
-    this.rightColorModel = new PhiloGL.O3D.Model({
-        id: 'Right colors',
-        dynamic: true,
-        drawType: 'LINES'
-    });
-    this.rightColorModel.dynamic = true;
-    this.app.scene.add(this.rightColorModel);
+    this.leftColorMesh = new Mesh(this.height * 2, gl.LINES, gl.STREAM_DRAW,
+                                  gl.STREAM_DRAW);
+    this.rightColorMesh = new Mesh(this.height * 2, gl.LINES, gl.STREAM_DRAW,
+                                  gl.STREAM_DRAW);
 };
 
 Level.prototype.update = function() {
@@ -468,22 +473,18 @@ Level.prototype.addToBottom = function() {
 
     // Loop through pixels which have fallen off screen and calculate new
     // values for them
-    var yPos = this.particle.position.y;
-    var loopYPos = this.lastYPos;
-    while (loopYPos > yPos) {
-        var writePosition = Math.mod(loopYPos, height);
-        writePosition = Math.floor(writePosition);
-        left[writePosition] = this.calculateSide(loopYPos,
-                                                 this.leftDetails);
-        right[writePosition] = this.calculateSide(loopYPos,
-                                                  this.rightDetails);
-        leftColors[writePosition] = null;
-        rightColors[writePosition] = null;
-        loopYPos -= 1;
-    }
+    for (var i=0; i<this.velocity; i++) {
+        left[this.zeroIndex] = this.calculateSide(this.sideIndex, this.leftDetails);
+        right[this.zeroIndex] = this.calculateSide(this.sideIndex, this.rightDetails);
+        leftColors[this.zeroIndex] = null;
+        rightColors[this.zeroIndex] = null;
+        this.sideIndex += 1;
 
-    this.lastYPos = yPos;
-    this.zeroPos = Math.floor(Math.mod(this.lastYPos, height));
+        this.zeroIndex += 1;
+        if (this.zeroIndex >= this.height) {
+            this.zeroIndex -= this.height;
+        }
+    }
 };
 
 Level.prototype.updateModels = function() {
@@ -495,56 +496,107 @@ Level.prototype.updateModels = function() {
     var leftColors = this.leftColors;
     var rightColors = this.rightColors;
 
-    var leftVertexArray = [];
-    var leftColorArray = [];
-    var rightVertexArray = [];
-    var rightColorArray = [];
+    var leftVertexBuffer = this.leftMesh.vertexBuffer.array;
+    var leftColorBuffer = this.leftMesh.colorBuffer.array;
+    var rightVertexBuffer = this.rightMesh.vertexBuffer.array;
+    var rightColorBuffer = this.rightMesh.colorBuffer.array;
 
-    var leftColorVertexArray = [];
-    var leftColorColorArray = [];
-    var rightColorVertexArray = [];
-    var rightColorColorArray = [];
+    var leftColorVertexBuffer = this.leftColorMesh.vertexBuffer.array;
+    var leftColorColorBuffer = this.leftColorMesh.colorBuffer.array;
+    var rightColorVertexBuffer = this.rightColorMesh.vertexBuffer.array;
+    var rightColorColorBuffer = this.rightColorMesh.colorBuffer.array;
 
-    var startPosition = Math.floor(Math.mod(this.lastYPos, height));
+    var leftCount = 0;
+    var rightCount = 0;
+
+    var zeroIndex = this.zeroIndex;
 
     for (var i = 0; i < height; i++) {
-        var readIndex = (startPosition + i + 1) % height;
-        var yPos = height / 2 - i;
+        var readIndex = (zeroIndex + i) % height;
 
         var leftVertex = left[readIndex];
         var rightVertex = right[readIndex];
 
-        leftVertexArray.push(leftVertex, yPos, 0);
-        rightVertexArray.push(rightVertex, yPos, 0);
-        leftColorArray.push(1, 1, 1, 1);
-        rightColorArray.push(1, 1, 1, 1);
+        leftVertexBuffer[i * 3 + 0] = leftVertex;
+        leftVertexBuffer[i * 3 + 1] = i - height / 2;
+        leftVertexBuffer[i * 3 + 2] = 0;
+
+        rightVertexBuffer[i * 3 + 0] = rightVertex;
+        rightVertexBuffer[i * 3 + 1] = i - height / 2;
+        rightVertexBuffer[i * 3 + 2] = 0;
+
+        leftColorBuffer[i * 4 + 0] = 1;
+        leftColorBuffer[i * 4 + 1] = 1;
+        leftColorBuffer[i * 4 + 2] = 1;
+        leftColorBuffer[i * 4 + 3] = 1;
+
+        rightColorBuffer[i * 4 + 0] = 1;
+        rightColorBuffer[i * 4 + 1] = 1;
+        rightColorBuffer[i * 4 + 2] = 1;
+        rightColorBuffer[i * 4 + 3] = 1;
 
         var leftColor = leftColors[readIndex];
         var rightColor = rightColors[readIndex];
-        if (leftColor != null) {
-            leftColorVertexArray.push(-width / 2, yPos, 0,
-                                      leftVertex - 1, yPos, 0);
-            Array.prototype.push.apply(leftColorColorArray, leftColor);
-            Array.prototype.push.apply(leftColorColorArray, leftColor);
-        }
 
+        if (leftColor != null) {
+            leftColorVertexBuffer[leftCount * 6 + 0] = -width / 2;
+            leftColorVertexBuffer[leftCount * 6 + 1] =  i - height / 2;
+            leftColorVertexBuffer[leftCount * 6 + 2] = 0;
+            leftColorVertexBuffer[leftCount * 6 + 3] = leftVertex - 1;
+            leftColorVertexBuffer[leftCount * 6 + 4] = i - height / 2;
+            leftColorVertexBuffer[leftCount * 6 + 5] = 0;
+
+            leftColorColorBuffer[leftCount * 8 + 0] = leftColor[0];
+            leftColorColorBuffer[leftCount * 8 + 1] = leftColor[1];
+            leftColorColorBuffer[leftCount * 8 + 2] = leftColor[2];
+            leftColorColorBuffer[leftCount * 8 + 3] = leftColor[3];
+            leftColorColorBuffer[leftCount * 8 + 4] = leftColor[0];
+            leftColorColorBuffer[leftCount * 8 + 5] = leftColor[1];
+            leftColorColorBuffer[leftCount * 8 + 6] = leftColor[2];
+            leftColorColorBuffer[leftCount * 8 + 7] = leftColor[3];
+
+            leftCount += 1;
+        }
         if (rightColor != null) {
-            rightColorVertexArray.push(rightVertex + 1, yPos, 0,
-                                       width / 2, yPos, 0);
-            Array.prototype.push.apply(rightColorColorArray, rightColor);
-            Array.prototype.push.apply(rightColorColorArray, rightColor);
+            rightColorVertexBuffer[rightCount * 6 + 0] = rightVertex + 1;
+            rightColorVertexBuffer[rightCount * 6 + 1] = i - height / 2;
+            rightColorVertexBuffer[rightCount * 6 + 2] = 0;
+            rightColorVertexBuffer[rightCount * 6 + 3] = width / 2;
+            rightColorVertexBuffer[rightCount * 6 + 4] = i - height / 2;
+            rightColorVertexBuffer[rightCount * 6 + 5] = 0;
+                
+            rightColorColorBuffer[rightCount * 8 + 0] = rightColor[0];
+            rightColorColorBuffer[rightCount * 8 + 1] = rightColor[1];
+            rightColorColorBuffer[rightCount * 8 + 2] = rightColor[2];
+            rightColorColorBuffer[rightCount * 8 + 3] = rightColor[3];
+            rightColorColorBuffer[rightCount * 8 + 4] = rightColor[0];
+            rightColorColorBuffer[rightCount * 8 + 5] = rightColor[1];
+            rightColorColorBuffer[rightCount * 8 + 6] = rightColor[2];
+            rightColorColorBuffer[rightCount * 8 + 7] = rightColor[3];
+
+            rightCount += 1;
         }
     }
-    this.leftModel.vertices = leftVertexArray;
-    this.rightModel.vertices = rightVertexArray;
-    this.leftModel.colors = leftColorArray;
-    this.rightModel.colors = rightColorArray;
 
-    this.leftColorModel.vertices = leftColorVertexArray;
-    this.rightColorModel.vertices = rightColorVertexArray;
-    this.leftColorModel.colors = leftColorColorArray;
-    this.rightColorModel.colors = rightColorColorArray;
+    this.leftMesh.vertexBuffer.setValues();
+    this.leftMesh.colorBuffer.setValues();
+    this.rightMesh.vertexBuffer.setValues();
+    this.rightMesh.colorBuffer.setValues();
+    this.leftColorMesh.vertexBuffer.setValues();
+    this.leftColorMesh.colorBuffer.setValues();
+    this.rightColorMesh.vertexBuffer.setValues();
+    this.rightColorMesh.colorBuffer.setValues();
+
+    this.numberOfLeftColors = leftCount;
+    this.numberOfRightColors = rightCount;
 };
+
+Level.prototype.draw = function() {
+    this.app.renderer.render(this.leftMesh);
+    this.app.renderer.render(this.rightMesh);
+    this.app.renderer.render(this.leftColorMesh, 0, this.numberOfLeftColors * 2);
+    this.app.renderer.render(this.rightColorMesh, 0, this.numberOfRightColors * 2);
+}
 
 Level.prototype.calculateSide = function(yPos, details) {
     var x = 0;
@@ -561,165 +613,144 @@ Level.prototype.calculateSide = function(yPos, details) {
 };
 
 Level.prototype.getSides = function(yPos) {
-    var index = this.yPosToIndex(yPos);
+    var distanceFromTop = yPos + this.height / 2;
+    var index = Math.floor(this.zeroIndex + distanceFromTop) % this.height;
     var left = this.left[index];
     var right = this.right[index];
     return [left, right];
 };
 
 Level.prototype.yPosToIndex = function(yPos) {
-    var height = this.height;
-    yPos = this.zeroPos + 2 + height / 2 - yPos;
-    yPos = Math.floor(yPos % height);
-    return yPos;
+    var distanceFromTop = yPos + this.height / 2;
+    var index = Math.floor(this.zeroIndex + distanceFromTop) % this.height;
+    return index;
 };
-// Override for speed
-PhiloGL.O3D.Model.prototype.update = function() {
-    var matrix = this.matrix,
-        pos = this.position,
-        rot = this.rotation,
-        scale = this.scale;
+window.onload = function() {
+    var SirenSong = function(element, options) {
+        App.call(this, element, options);
+        this.initKeyEvents();
 
-    PhiloGL.Mat4.id(matrix);
-    PhiloGL.Mat4.$translate(matrix, pos.x, pos.y, pos.z);
-    PhiloGL.Mat4.$rotateXYZ(matrix, rot.x, rot.y, rot.z);
-    PhiloGL.Mat4.$scale(matrix, scale.x, scale.y, scale.z);
-};
+        this.width = this.canvas.width;
+        this.height = this.canvas.height;
+
+        gl.viewport(0, 0, this.width, this.height);
+
+        this.renderer = new BasicRenderer('basic-vert',
+                                          'basic-frag');
+
+        this.projection = new MatrixStack();
+        mat4.ortho(-this.width / 2, this.width / 2,
+                   this.height / 2, -this.height / 2,
+                   -1, 1, this.projection.matrix);
+        this.renderer.setUniform('uProjectionMatrix',
+                                 this.projection.matrix);
+
+        this.modelview = new MatrixStack();
+        this.renderer.setUniform('uModelviewMatrix',
+                                 this.modelview.matrix);
 
 
-function webGLStart() {
-    PhiloGL('siren-song', {
-        context: {
-            antialias: false
-        },
-        onError: function() {
-            alert('There was an error creating the app.');
-        },
+        this.keys = {};
 
-        onLoad: function(app) {
-            // Ortho camera
-            var gl = app.gl;
+        this.audiolet = new Audiolet();
+        this.scale = new MajorScale();
+        this.rootFrequency = 16.352;
+        this.delay = new FeedbackDelay(this.audiolet, 0.9, 0.2);
+        this.reverb = new Reverb(this.audiolet, 0.9, 1, 0.5);
+        this.crusher = new BitCrusher(this.audiolet, 8);
+        this.delay.connect(this.reverb);
+        this.reverb.connect(this.crusher);
+        this.crusher.connect(this.audiolet.output);
 
-            app.width = app.canvas.width;
-            app.height = app.canvas.height;
+        this.particleSystem = new ParticleSystem();
 
-            app.frameCount = 0;
+        this.cloud = new Cloud(this);
 
-            gl.clearColor(0, 0, 0, 1);
-            gl.enable(gl.BLEND);
-            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        this.level = new Level(this);
 
-            gl.viewport(0, 0, app.width, app.height);
-            app.camera.projection.ortho(-app.width / 2,
-                                        app.width / 2,
-                                        app.height / 2,
-                                        -app.height / 2, -1, 1);
-            app.camera.modelView.id();
+        this.goodGuy = new GoodGuy(this);
 
-            app.keys = new Array(512);
+        this.sirens = [];
 
-            app.audiolet = new Audiolet();
-            app.scale = new MajorScale();
-            app.rootFrequency = 16.352;
-            app.delay = new FeedbackDelay(app.audiolet, 0.9, 0.2);
-            app.reverb = new Reverb(app.audiolet, 0.9, 1, 0.5);
-            app.crusher = new BitCrusher(app.audiolet, 8);
-            app.delay.connect(app.reverb);
-            app.reverb.connect(app.crusher);
-            app.crusher.connect(app.audiolet.output);
+        this.score = new Score(this);
 
-            app.particleSystem = new ParticleSystem();
+        this.ui = new UI(this);
 
-            app.cloud = new Cloud(app);
+        this.draw();
+        this.ui.startCountdown();
+    }
+    extend(SirenSong, App);
+    implement(SirenSong, KeyEvents);
 
-            app.level = new Level(app);
-
-            app.goodGuy = new GoodGuy(app);
-
-            app.sirens = [];
-
-            app.score = new Score(app);
-
-            app.ui = new UI(app);
-
-            app.paused = true;
-            draw();
-            app.ui.startCountdown();
-
-            function handleKeys() {
-                if (app.keys[37] || app.keys[65]) {  // Left or A
-                    var dx = Math.min(0.15 + 4E-6 * app.score.score, 0.5);
-                    app.goodGuy.particle.velocity.x -= dx;
-                }
-                if (app.keys[39] || app.keys[68]) { // Right or D
-                    var dx = Math.min(0.15 + 4E-6 * app.score.score, 0.5);
-                    app.goodGuy.particle.velocity.x += dx;
-                }
-            }
-
-            function addSirens() {
-                if (Math.random() > 0.98) {
-                    app.sirens.push(new SpiralSiren(app));
-                }
-                /*
-                if (!app.sirens.length) {
-                    app.sirens.push(new Siren(app));
-                }
-                */
-            }
-
-            function draw() {
-                handleKeys();
-                app.particleSystem.tick();
-                app.level.update();
-
-                addSirens();
-
-                for (var i = 0; i < app.sirens.length; i++) {
-                    app.sirens[i].update();
-                }
-
-                app.goodGuy.update();
-
-                app.cloud.update();
-
-                app.ui.updateScore();
-
-                gl.clear(gl.COLOR_BUFFER_BIT);
-                app.scene.render();
-
-                if (!app.paused) {
-                    PhiloGL.Fx.requestAnimationFrame(draw);
-                }
-                app.frameCount += 1;
-            }
-
-            app.run = function() {
-                PhiloGL.Fx.requestAnimationFrame(draw);
-                this.paused = false;
-            };
-
-            app.stop = function() {
-                this.paused = true;
-            };
-        },
-
-        events: {
-            onKeyDown: function(event) {
-                this.keys[event.code] = true;
-            },
-
-            onKeyUp: function(event) {
-                this.keys[event.event.keyCode] = false;
-            }
+    SirenSong.prototype.handleKeys = function() {
+        if (this.keys.left || this.keys.a) {
+            var dx = Math.min(0.15 + 4E-6 * this.score.score, 0.5);
+            this.goodGuy.particle.velocity[0] -= dx;
         }
-    });
-}
+        if (this.keys.right || this.keys.d) {
+            var dx = Math.min(0.15 + 4E-6 * this.score.score, 0.5);
+            this.goodGuy.particle.velocity[0] += dx;
+        }
+    };
+
+    SirenSong.prototype.addSirens = function() {
+        if (Math.random() > 0.98) {
+            this.sirens.push(new SpiralSiren(this));
+        }
+        /*
+        if (!this.sirens.length) {
+            this.sirens.push(new Siren(this));
+        }
+        */
+    };
+
+    SirenSong.prototype.draw = function() {
+        this.handleKeys();
+        this.particleSystem.tick();
+        this.level.update();
+
+        this.addSirens();
+
+        for (var i = 0; i < this.sirens.length; i++) {
+            this.sirens[i].update();
+        }
+
+        this.goodGuy.update();
+
+        this.cloud.update();
+
+        this.ui.updateScore();
+
+        this.clear([0, 0, 0, 1]);
+        this.renderer.setUniform('uModelviewMatrix',
+                                 this.modelview.matrix);
+        this.level.draw();
+        this.cloud.draw();
+        for (var i=0; i<this.sirens.length; i++) {
+            this.sirens[i].draw();
+        }
+        this.goodGuy.draw();
+    };
+
+    SirenSong.prototype.keyPressed = function(key) {
+        this.keys[key] = true;
+    };
+
+    SirenSong.prototype.keyReleased = function(key) {
+        this.keys[key] = false;
+    };
+
+    window.app = new SirenSong(document.getElementById('main'), {
+                                   width: 800,
+                                   height: 600,
+                                   antialias: false}
+                              );
+};
 var Particle = function(mass) {
     this.mass = mass;
-    this.position = new PhiloGL.Vec3();
-    this.velocity = new PhiloGL.Vec3();
-    this.force = new PhiloGL.Vec3();
+    this.position = vec3.create();
+    this.velocity = vec3.create();
+    this.force = vec3.create();
     this.age = 0;
 };
 
@@ -728,18 +759,6 @@ Particle.prototype.toString = function() {
            '\n velocity: ' + this.velocity +
            '\n force: ' + this.force +
            '\n age: ' + this.age;
-};
-
-Particle.prototype.distanceTo = function(p) {
-    return PhiloGL.Vec3.distTo(this.position, p.position);
-};
-
-Particle.prototype.reset = function() {
-    this.age = 0;
-    PhiloGL.Vec3.set(this.position, 0, 0, 0);
-    PhiloGL.Vec3.set(this.velocity, 0, 0, 0);
-    PhiloGL.Vec3.set(this.force, 0, 0, 0);
-    this.mass = 1;
 };
 
 var ParticleSystem = function() {
@@ -772,7 +791,7 @@ ParticleSystem.prototype.clearForces = function() {
     var particles = this.particles;
     var numberOfParticles = particles.length;
     for (var i = 0; i < numberOfParticles; i++) {
-        PhiloGL.Vec3.set(particles[i].force, 0, 0, 0);
+        vec3.set([0, 0, 0], particles[i].force);
     }
 };
 
@@ -951,61 +970,74 @@ var Siren = function(app) {
     this.frequencyPattern = null;
     this.octave = null;
 
-    var yPos = app.height / 2;
+    var yPos = app.height / 2 - 1;
     var sides = this.app.level.getSides(yPos);
     var xPos = sides[0] + this.radius * 2;
     xPos += (sides[1] - sides[0] - this.radius * 2) * Math.random();
     this.particle = new Particle(1);
-    this.particle.position.x = xPos;
-    this.particle.position.y = yPos;
-    this.particle.velocity.y = -3;
+    this.particle.position[0] = xPos;
+    this.particle.position[1] = yPos;
+    this.particle.velocity[1] = -3;
     this.app.particleSystem.particles.push(this.particle);
 
     this.attraction = new AttractionToGoodGuy(this.app.goodGuy.particle,
                                               this.particle, 800, 20, 40);
     this.app.particleSystem.forces.push(this.attraction);
 
-    var vertices = [];
-    var colors = [];
+
     var numberOfPoints = 40;
     var numberOfSpirals = 2;
     var spacing = 3;
+
+    this.mesh = new Mesh(numberOfPoints, gl.LINE_STRIP, gl.STATIC_DRAW,
+                         gl.STATIC_DRAW);
+    var vertexBuffer = this.mesh.vertexBuffer.array;
+    var colorBuffer = this.mesh.colorBuffer.array;
+
     for (var i = 0; i < numberOfPoints; i++) {
         var theta = numberOfSpirals * i * 2 * Math.PI / numberOfPoints;
-        vertices.push(5 * theta * Math.sin(theta) / (2 * Math.PI));
-        vertices.push(5 * theta * Math.cos(theta) / (2 * Math.PI));
-        vertices.push(0);
-        colors.push(1, 1, 1, 1);
-    }
+        vertexBuffer[i * 3 + 0] = 5 * theta * Math.sin(theta) / (2 * Math.PI);
+        vertexBuffer[i * 3 + 1] = 5 * theta * Math.cos(theta) / (2 * Math.PI);
+        vertexBuffer[i * 3 + 2] = 0;
 
-    this.model = new PhiloGL.O3D.Model({vertices: vertices,
-                                        colors: colors,
-                                        drawType: 'LINE_STRIP'});
-    this.app.scene.add(this.model);
+        colorBuffer[i * 4 + 0] = 1;
+        colorBuffer[i * 4 + 1] = 1;
+        colorBuffer[i * 4 + 2] = 1;
+        colorBuffer[i * 4 + 3] = 1;
+    }
+    this.mesh.vertexBuffer.setValues();
+    this.mesh.colorBuffer.setValues();
+    this.transformation = new Transformation();
 };
 
 Siren.prototype.update = function() {
-    this.model.rotation.z -= 0.3;
-    this.model.update();
+/*    this.model.rotation.z -= 0.3;
+    this.model.update(); */
 
     var position = this.particle.position;
-    var sides = this.app.level.getSides(position.y);
-    if (position.y < -this.app.height / 2 ||
-        position.x < sides[0] ||
-        position.x > sides[1]) {
+    var sides = this.app.level.getSides(position[1]);
+    if (position[1] < -this.app.height / 2 ||
+        position[0] < sides[0] ||
+        position[0] > sides[1]) {
         this.remove();
     }
     else {
-        PhiloGL.Vec3.setVec3(this.model.position, this.particle.position);
-        this.model.update();
+        vec3.set(this.particle.position, this.transformation.position);
         if (this.connected) {
             this.createParticles();
         }
     }
 };
 
+Siren.prototype.draw = function() {
+    this.app.modelview.pushMatrix();
+    this.transformation.apply(this.app.modelview.matrix);
+    this.app.renderer.setUniform('uModelviewMatrix', this.app.modelview.matrix);
+    this.app.renderer.render(this.mesh);
+    this.app.modelview.popMatrix();
+};
+
 Siren.prototype.remove = function() {
-    this.app.scene.remove(this.model);
     this.app.particleSystem.removeParticle(this.particle);
 
     var index = this.app.sirens.indexOf(this);
@@ -1066,7 +1098,6 @@ Siren.prototype.remove = function() {
             this.synth.sirenEnv.gate.setValue(0);
         }
         else {
-            console.log('me');
             this.synth.removeWithEvent();
         }
     }
@@ -1178,9 +1209,9 @@ SpiralSiren.prototype.createParticles = function() {
         var angle = this.phase + i * 2 * Math.PI / this.numberOfOutputs;
         var particle = new Particle(1);
         this.app.cloud.particleSystem.particles.push(particle);
-        PhiloGL.Vec3.setVec3(particle.position, this.particle.position);
-        particle.velocity.x = Math.sin(angle);
-        particle.velocity.y = this.particle.velocity.y + Math.cos(angle);
+        vec3.set(this.particle.position, particle.position);
+        particle.velocity[0] = Math.sin(angle);
+        particle.velocity[1] = this.particle.velocity[1] + Math.cos(angle);
     }
     this.phase += this.frequency * 2 * Math.PI;
 };
@@ -1201,11 +1232,6 @@ Spring.prototype.toString = function() {
            '\nrestLength: ' + this.restLength;
 };
 
-Spring.prototype.currentLength = function() {
-    return PhiloGL.Vec3.distTo(this.a.position, this.b.position);
-};
-
-
 Spring.prototype.apply = function() {
     var a = this.a;
     var b = this.b;
@@ -1213,24 +1239,27 @@ Spring.prototype.apply = function() {
     var springConstant = this.springConstant;
     var damping = this.damping;
 
-    var a2b = PhiloGL.Vec3.sub(a.position, b.position);
-    var a2bDistance = PhiloGL.Vec3.norm(a2b);
+    var a2b = vec3.create();
+    vec3.subtract(a.position, b.position, a2b);
+    var a2bDistance = vec3.length(a2b);
 
     if (a2bDistance == 0) {
-        PhiloGL.Vec3.set(a2b, 0, 0, 0);
+        vec3.set([0, 0, 0], a2b);
     } else {
-        PhiloGL.Vec3.$scale(a2b, 1 / a2bDistance);
+        vec3.scale(a2b, 1 / a2bDistance);
     }
 
     var springForce = -(a2bDistance - restLength) * springConstant;
-    var vA2b = PhiloGL.Vec3.sub(a.velocity, b.velocity);
-    var dampingForce = -damping * PhiloGL.Vec3.dot(a2b, vA2b);
+    var vA2b = vec3.create();
+    vec3.subtract(a.velocity, b.velocity, vA2b);
+    var dampingForce = -damping * vec3.dot(a2b, vA2b);
     var r = springForce + dampingForce;
 
-    PhiloGL.Vec3.$scale(a2b, r);
+    vec3.scale(a2b, r);
 
-    PhiloGL.Vec3.$add(a.force, a2b);
-    PhiloGL.Vec3.$add(b.force, PhiloGL.Vec3.neg(a2b));
+    vec3.add(a.force, a2b);
+    // Can negate without a new vec3 as we don't use a2b again
+    vec3.add(b.force, vec3.negate(a2b));
 };
 var SpringToGoodGuy = function(a, b, springConstant, damping, restLength) {
     this.a = a;
@@ -1248,11 +1277,6 @@ SpringToGoodGuy.prototype.toString = function() {
            '\nrestLength: ' + this.restLength;
 };
 
-SpringToGoodGuy.prototype.currentLength = function() {
-    return PhiloGL.Vec3.distTo(this.a.position, this.b.position);
-};
-
-
 SpringToGoodGuy.prototype.apply = function() {
     var a = this.a;
     var b = this.b;
@@ -1260,23 +1284,25 @@ SpringToGoodGuy.prototype.apply = function() {
     var springConstant = this.springConstant;
     var damping = this.damping;
 
-    var a2b = PhiloGL.Vec3.sub(a.position, b.position);
-    var a2bDistance = PhiloGL.Vec3.norm(a2b);
+    var a2b = vec3.create();
+    vec3.subtract(a.position, b.position, a2b);
+    var a2bDistance = vec3.length(a2b);
 
     if (a2bDistance == 0) {
-        PhiloGL.Vec3.set(a2b, 0, 0, 0);
+        vec3.set([0, 0, 0], a2b);
     } else {
-        PhiloGL.Vec3.$scale(a2b, 1 / a2bDistance);
+        vec3.scale(a2b, 1 / a2bDistance);
     }
 
     var springForce = -(a2bDistance - restLength) * springConstant;
-    var vA2b = PhiloGL.Vec3.sub(a.velocity, b.velocity);
-    var dampingForce = -damping * PhiloGL.Vec3.dot(a2b, vA2b);
+    var vA2b = vec3.create();
+    vec3.subtract(a.velocity, b.velocity, vA2b);
+    var dampingForce = -damping * vec3.dot(a2b, vA2b);
     var r = springForce + dampingForce;
 
-    PhiloGL.Vec3.$scale(a2b, r);
+    vec3.scale(a2b, r);
 
-    PhiloGL.Vec3.$add(b.force, PhiloGL.Vec3.neg(a2b));
+    vec3.add(b.force, vec3.negate(a2b));
 };
 var UI = function(app) {
     this.app = app;
