@@ -1,8 +1,8 @@
 var SpiralSiren = function(app) {
     Siren.call(this, app);
     this.phase = 0;
-    this.frequency = 0.05;
-    this.numberOfOutputs = 10;
+    this.frequency = -0.5 + Math.random() * 0.5;
+    this.numberOfOutputs = Math.floor(2 + Math.random() * 9);
 };
 extend(SpiralSiren, Siren);
 

@@ -14,6 +14,10 @@ a {
 
 canvas {
     margin: 0 auto;
+}
+
+canvas#webglet-app {
+    margin-top: 36px;
     border: 1px solid #FFF;
 }
 
@@ -55,37 +59,8 @@ div#main {
 }
 
 div#ui {
-    font-family: 'Orbitron', sans-serif;
-}
-
-div#score, div#high-score, div#new-high-score {
-    width: 33.3%;
-    float: left;
-    color: #00FF00;
-    font-size: 36px;
-}
-
-div#score {
-    color: #00FF00;
-}
-
-div#new-high-score {
-    color: #FFF;
-    text-align: center;
-    visibility: hidden;
-}
-
-div#high-score {
-    color: #FF0000;
-    text-align: right;
-}
-
-div#countdown {
-    font-size: 72px;
     position: absolute;
-    text-align: center;
-    left: 50%;
-    top: 300px;
+    z-index: 1;
 }
 
 div#footer .amp {

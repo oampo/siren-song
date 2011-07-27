@@ -51,6 +51,8 @@ window.onload = function() {
 
         this.update();
         this.draw();
+
+        this.shouldUpdate = false;
         this.ui.startCountdown();
 
         setInterval(this.preUpdate.bind(this), 1000/60);
@@ -81,7 +83,7 @@ window.onload = function() {
     };
 
     SirenSong.prototype.preUpdate = function() {
-        if (this.running) {
+        if (this.shouldUpdate) {
             this.update();
         }
     };
@@ -114,6 +116,7 @@ window.onload = function() {
             this.sirens[i].draw();
         }
         this.goodGuy.draw();
+        this.ui.draw();
     };
 
     SirenSong.prototype.keyPressed = function(key) {
@@ -129,4 +132,5 @@ window.onload = function() {
                                    height: 600,
                                    antialias: false}
                               );
+    window.app.run();
 };

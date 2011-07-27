@@ -44,7 +44,7 @@ GoodGuy.prototype.update = function() {
         this.particle.position[0] > this.app.width / 2 ||
         this.particle.position[1] < -this.app.height / 2 ||
         this.particle.position[1] > this.app.height / 2) {
-        this.app.stop();
+        this.app.shouldUpdate = false;
         this.particle.position[0] = (sides[0] + sides[1]) / 2;
         this.particle.velocity[0] = 0;
         this.app.ui.startCountdown();
