@@ -6,7 +6,7 @@ var SirenSynth = function(audiolet) {
     this.scheduler = null;
 
     // Basic waves
-    this.pulse = new Pulse(audiolet, 440);//, 0.2 + Math.random() * 0.7);
+    this.pulse = new Pulse(audiolet, 440);
 
     // Note on trigger
     this.trigger = new TriggerControl(audiolet);
@@ -50,11 +50,3 @@ SirenSynth.FREQUENCIES = [[0, 1, 2],
                           [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
                           [0, 1, 2, 3, 4, 5, 6, 7,
                            8, 9, 10, 11, 12, 13, 14, 15]];
-/*
-SirenSynth.FREQUENCIES = [[0, 1, 2],
-                          [1, 0, 2],
-                          [2, 1, 0],
-                          [3, 4, 5],
-                          [4, 3, 5],
-                          [5, 4, 3]];
-*/

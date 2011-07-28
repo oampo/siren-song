@@ -45,6 +45,8 @@ window.onload = function() {
 
         this.sirens = [];
 
+        this.chain = [this.goodGuy];
+
         this.score = new Score(this);
 
         this.ui = new UI(this);
@@ -75,11 +77,6 @@ window.onload = function() {
         if (Math.random() > 0.98) {
             this.sirens.push(new SpiralSiren(this));
         }
-        /*
-        if (!this.sirens.length) {
-            this.sirens.push(new Siren(this));
-        }
-        */
     };
 
     SirenSong.prototype.preUpdate = function() {

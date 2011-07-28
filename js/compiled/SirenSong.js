@@ -55,6 +55,65 @@ AttractionToGoodGuy.prototype.apply = function() {
     }
 };
 
+var AudioReactiveMesh = {};
+
+AudioReactiveMesh.initAudioReactiveMesh = function() {
+    this.lastChannel = null;
+    this.channelPosition = 0;
+    this.framesPerChannel = 0;
+
+    this.initVertices();
+};
+
+AudioReactiveMesh.initVertices = function() {
+    var vertexBuffer = this.mesh.vertexBuffer.array;
+
+    var dTheta = 2 * Math.PI / this.numberOfPoints;
+
+    for (var i = 0; i < this.numberOfPoints; i++) {
+        var theta = i * dTheta;
+        vertexBuffer[i * 3 + 0] = this.radius * Math.sin(theta);
+        vertexBuffer[i * 3 + 1] = this.radius * Math.cos(theta);
+        vertexBuffer[i * 3 + 2] = 0;
+    }
+    this.mesh.vertexBuffer.setValues();
+};
+
+AudioReactiveMesh.updateVertices = function(channel, gain) {
+    gain = gain || 1;
+    var vertexBuffer = this.mesh.vertexBuffer.array;
+
+    if (channel == this.lastChannel) {
+        if (this.channelPosition < this.framesPerChannel - 1) {
+            this.channelPosition += 1;
+        }
+    }
+    else {
+        this.channelPosition = 0;
+        var sampleRate = this.app.audiolet.device.sampleRate;
+        var blockLength = channel.length / sampleRate;
+        var frameRate = 1 / 60;
+        this.framesPerChannel = Math.floor(blockLength / frameRate);
+        this.framesPerChannel = Math.max(this.framesPerChannel, 1);
+    }
+    this.lastChannel = channel;
+
+    var dTheta = 2 * Math.PI / this.numberOfPoints;
+
+    var samples = Math.floor(channel.length / this.framesPerChannel);
+    var iIndex = this.channelPosition * samples;
+    var dIndex = Math.floor(samples / this.numberOfPoints);
+    for (var i = 0; i < this.numberOfPoints; i++) {
+        var theta = i * dTheta;
+        var index = iIndex + i * dIndex;
+        var sample = channel[index] * gain;
+        vertexBuffer[i * 3 + 0] = this.radius * (Math.sin(theta) + sample);
+        vertexBuffer[i * 3 + 1] = this.radius * (Math.cos(theta) + sample);
+        vertexBuffer[i * 3 + 2] = 0;
+    };
+
+    this.mesh.vertexBuffer.setValues();
+};
 var CloudIntegrator = function(s) {
     this.s = s;
 };
@@ -223,8 +282,8 @@ extend(FeedbackDelay, AudioletGroup);
 var GoodGuy = function(app) {
     this.app = app;
 
+    this.numberOfPoints = 100;
     this.radius = 12;
-    this.chain = [];
     this.springOut = null;
 
     var sides = this.app.level.getSides(0);
@@ -232,38 +291,31 @@ var GoodGuy = function(app) {
     this.particle = this.app.particleSystem.createParticle();
     this.particle.position[0] = middle;
 
-    this.numberOfPoints = 100;
+    this.transformation = new Transformation();
+    this.angle = 0;
 
     this.mesh = new Mesh(this.numberOfPoints, gl.LINE_STRIP, gl.STATIC_DRAW,
                          gl.STATIC_DRAW);
-    var vertexBuffer = this.mesh.vertexBuffer.array;
+    this.initAudioReactiveMesh();
+    this.initColors();
+};
+implement(GoodGuy, AudioReactiveMesh);
+
+GoodGuy.prototype.initColors = function() {
     var colorBuffer = this.mesh.colorBuffer.array;
 
-    var dTheta = 2 * Math.PI / this.numberOfPoints;
     var dHue = 1 / this.numberOfPoints;
     for (var i = 0; i < this.numberOfPoints; i++) {
-        var theta = i * dTheta;
         var hue = i * dHue;
-        vertexBuffer[i * 3 + 0] = this.radius * Math.sin(theta);
-        vertexBuffer[i * 3 + 1] = this.radius * Math.cos(theta);
-        vertexBuffer[i * 3 + 2] = 0;
-
         var color = Color.hsvaToRGBA(hue, 1, 1, 1);
         colorBuffer[i * 4 + 0] = color[0];
         colorBuffer[i * 4 + 1] = color[1];
         colorBuffer[i * 4 + 2] = color[2];
         colorBuffer[i * 4 + 3] = color[3];
     }
-    this.mesh.vertexBuffer.setValues();
     this.mesh.colorBuffer.setValues();
-
-    this.transformation = new Transformation();
-
-    this.lastChannel = null;
-    this.channelPosition = 0;
-    this.framesPerChannel = 0;
-    this.angle = 0;
 };
+
 
 GoodGuy.prototype.update = function() {
     var sides = this.app.level.getSides(0);
@@ -286,47 +338,13 @@ GoodGuy.prototype.update = function() {
 
     this.handleSirenCollisions();
 
-    this.updateMesh();
+    var channel = this.app.crusher.outputs[0].buffer.channels[0];
+    this.updateVertices(channel, 2);
 
     this.angle += 0.2;
     quat4.set([Math.cos(this.angle / 2), Math.sin(this.angle / 2), 0, 0],
               this.transformation.rotation);
     vec3.set(this.particle.position, this.transformation.position);
-};
-
-GoodGuy.prototype.updateMesh = function() {
-    var channel = this.app.crusher.outputs[0].buffer.channels[0];
-    if (channel == this.lastChannel) {
-        if (this.channelPosition < this.framesPerChannel - 1) {
-            this.channelPosition += 1;
-        }
-    }
-    else {
-        this.channelPosition = 0;
-        var sampleRate = this.app.audiolet.device.sampleRate;
-        var blockLength = channel.length / sampleRate;
-        var frameRate = 1 / 60;
-        this.framesPerChannel = Math.floor(blockLength / frameRate);
-        this.framesPerChannel = Math.max(this.framesPerChannel, 1);
-    }
-    this.lastChannel = channel;
-
-    var vertexBuffer = this.mesh.vertexBuffer.array;
-
-    var dTheta = 2 * Math.PI / this.numberOfPoints;
-
-    var samples = Math.floor(channel.length / this.framesPerChannel);
-    var iIndex = this.channelPosition * samples;
-    var dIndex = Math.floor(samples / this.numberOfPoints);
-    for (var i = 0; i < this.numberOfPoints; i++) {
-        var theta = i * dTheta;
-        var index = iIndex + i * dIndex;
-        var sample = channel[index] * 3;
-        vertexBuffer[i * 3 + 0] = this.radius * (Math.sin(theta) + sample);
-        vertexBuffer[i * 3 + 1] = this.radius * (Math.cos(theta) + sample);
-        vertexBuffer[i * 3 + 2] = 0;
-    };
-    this.mesh.vertexBuffer.setValues();
 };
 
 GoodGuy.prototype.draw = function() {
@@ -350,33 +368,11 @@ GoodGuy.prototype.handleSirenCollisions = function() {
             vec3.subtract(position, siren.particle.position, diff);
             var distance = vec3.length(diff);
             if (distance < this.radius + siren.radius) {
-                this.attach(siren);
+                siren.attach();
                 this.app.multiplier += 1;
             }
         }
     }
-};
-
-GoodGuy.prototype.attach = function(sirenA) {
-    if (this.chain.length == 0) {
-        // Connect to goodGuy
-        this.springOut = new SpringToGoodGuy(this.particle, sirenA.particle,
-                                             0.05, 0.5, 15);
-        this.app.particleSystem.forces.push(this.springOut);
-        sirenA.springIn = this.springOut;
-    }
-    else {
-        var sirenB = this.chain[this.chain.length - 1];
-        var spring = new Spring(sirenA.particle, sirenB.particle,
-                                 0.05, 0.5, 15);
-        this.app.particleSystem.forces.push(spring);
-        sirenA.springIn = spring;
-        sirenB.springOut = spring;
-    }
-    var index = this.app.particleSystem.removeForce(sirenA.attraction);
-    sirenA.connected = true;
-    sirenA.createSynth();
-    this.chain.push(sirenA);
 };
 
 var Integrator = function(s) {
@@ -719,6 +715,8 @@ window.onload = function() {
 
         this.sirens = [];
 
+        this.chain = [this.goodGuy];
+
         this.score = new Score(this);
 
         this.ui = new UI(this);
@@ -808,6 +806,10 @@ window.onload = function() {
                               );
     window.app.run();
 };
+Math.randomBetween = function(a, b) {
+    return a + Math.random() * (b - a);
+};
+        
 var Particle = function() {
     this.mass = 1;
     this.position = vec3.create();
@@ -1088,199 +1090,11 @@ Score.prototype.increase = function() {
 Score.prototype.decrease = function() {
     this.score = Math.floor(this.score * 0.995);
 };
-var Siren = function(app) {
+var SirenAudio = function(app) {
     this.app = app;
-    this.radius = 8;
-    this.connected = false;
-    this.springIn = null;
-    this.springOut = null;
 
-    this.synth = null;
-    this.durationPattern = null;
-    this.frequencyPattern = null;
-    this.octave = null;
-
-    var yPos = app.height / 2 - 1;
-    var sides = this.app.level.getSides(yPos);
-    var xPos = sides[0] + this.radius * 2;
-    xPos += (sides[1] - sides[0] - this.radius * 2) * Math.random();
-    this.particle = this.app.particleSystem.createParticle();
-    this.particle.position[0] = xPos;
-    this.particle.position[1] = yPos;
-    this.particle.velocity[1] = -3;
-
-    this.attraction = new AttractionToGoodGuy(this.app.goodGuy.particle,
-                                              this.particle, 800, 20, 40);
-    this.app.particleSystem.forces.push(this.attraction);
-
-
-    this.numberOfPoints = 100;
-    this.mesh = new Mesh(this.numberOfPoints, gl.LINE_STRIP, gl.STATIC_DRAW,
-                         gl.STATIC_DRAW);
-    var vertexBuffer = this.mesh.vertexBuffer.array;
-    var colorBuffer = this.mesh.colorBuffer.array;
-
-    var dTheta = 2 * Math.PI / (this.numberOfPoints - 1);
-    for (var i = 0; i < this.numberOfPoints; i++) {
-        var theta = i * dTheta;
-        vertexBuffer[i * 3 + 0] = this.radius * Math.sin(theta);
-        vertexBuffer[i * 3 + 1] = this.radius * Math.cos(theta);
-        vertexBuffer[i * 3 + 2] = 0;
-
-        colorBuffer[i * 4 + 0] = 1;
-        colorBuffer[i * 4 + 1] = 1;
-        colorBuffer[i * 4 + 2] = 1;
-        colorBuffer[i * 4 + 3] = 1;
-    }
-    this.mesh.vertexBuffer.setValues();
-    this.mesh.colorBuffer.setValues();
-    this.transformation = new Transformation();
-
-    this.lastChannel = null;
-    this.channelPosition = 0;
-    this.framesPerChannel = 0;
-};
-
-Siren.prototype.update = function() {
-/*    this.model.rotation.z -= 0.3;
-    this.model.update(); */
-
-    var position = this.particle.position;
-    var sides = this.app.level.getSides(position[1]);
-    if (position[1] < -this.app.height / 2 ||
-        position[0] < sides[0] ||
-        position[0] > sides[1]) {
-        this.remove();
-    }
-    else {
-        vec3.set(this.particle.position, this.transformation.position);
-        if (this.connected) {
-            this.updateMesh();
-            this.createParticles();
-        }
-    }
-};
-
-Siren.prototype.updateMesh = function() {
-    var channel = this.synth.outputs[0].outputs[0].buffer.channels[0];
-    if (channel == this.lastChannel) {
-        this.channelPosition += 1;
-        if (this.channelPosition >= this.framesPerChannel) {
-            this.channelPosition = this.framesPerChannel - 1;
-        }
-    }
-    else {
-        this.channelPosition = 0;
-        var sampleRate = this.app.audiolet.device.sampleRate;
-        var blockLength = channel.length / sampleRate;
-        var frameRate = 1 / 60;
-        this.framesPerChannel = Math.floor(blockLength / frameRate);
-        this.framesPerChannel = Math.max(this.framesPerChannel, 1);
-    }
-    this.lastChannel = channel;
-    var vertexBuffer = this.mesh.vertexBuffer.array;
-
-    var dTheta = 2 * Math.PI / (this.numberOfPoints - 1);
-
-    var samples = Math.floor(channel.length / this.framesPerChannel);
-    var iIndex = this.channelPosition * samples; 
-    var dIndex = Math.floor(samples / this.numberOfPoints);
-    for (var i = 0; i < this.numberOfPoints; i++) {
-        var theta = i * dTheta;
-        var index = iIndex + i * dIndex;
-        var sample = channel[index];
-        vertexBuffer[i * 3 + 0] = this.radius * (Math.sin(theta) +
-                                                 sample);
-        vertexBuffer[i * 3 + 1] = this.radius * (Math.cos(theta) +
-                                                 sample);
-        vertexBuffer[i * 3 + 2] = 0;
-    };
-    this.mesh.vertexBuffer.setValues();
-};
-
-Siren.prototype.draw = function() {
-    this.app.modelview.pushMatrix();
-    this.transformation.apply(this.app.modelview.matrix);
-    this.app.renderer.setUniform('uModelviewMatrix', this.app.modelview.matrix);
-    this.app.renderer.render(this.mesh);
-    this.app.modelview.popMatrix();
-};
-
-Siren.prototype.remove = function() {
-    this.app.particleSystem.recycleParticle(this.particle);
-
-    var index = this.app.sirens.indexOf(this);
-    if (index != -1) {
-        this.app.sirens.splice(index, 1);
-    }
-
-    if (this.connected) {
-        this.connected = false;
-        var chain = this.app.goodGuy.chain;
-        var chainIndex = chain.indexOf(this);
-        var before, after = null;
-
-        if (chainIndex == 0) {
-            before = this.app.goodGuy;
-        }
-        else {
-            before = chain[chainIndex - 1];
-        }
-
-        if (chainIndex != chainIndex.length - 1) {
-            after = chain[chainIndex + 1];
-        }
-
-        this.app.particleSystem.removeForce(this.springIn);
-        this.springIn = null;
-        before.springOut = null;
-
-        if (after) {
-            this.app.particleSystem.removeForce(this.springOut);
-            this.springOut = null;
-            after.springIn = null;
-        }
-
-        if (before && after) {
-            var spring;
-            if (before == this.app.goodGuy) {
-                spring = new SpringToGoodGuy(before.particle,
-                                             after.particle, 0.05, 0.5, 15);
-                this.app.particleSystem.forces.push(spring);
-            }
-            else {
-                spring = new Spring(before.particle, after.particle,
-                                    0.05, 0.5, 15);
-                this.app.particleSystem.forces.push(spring);
-            }
-            before.springOut = spring;
-            after.springIn = spring;
-        }
-        chain.splice(chainIndex, 1);
-
-        // Work around a race condition.  If the synth needs to be removed
-        // before it has been ticked for the first time, then the envelope
-        // never sees that the gate has been turned on, and the onComplete
-        // callback is never called.  If we have never ticked we are okay
-        // to manually remove the synth though.  Aces.
-        if (this.synth.sirenEnv.gateOn) {
-            this.synth.sirenEnv.gate.setValue(0);
-        }
-        else {
-            this.synth.removeWithEvent();
-        }
-    }
-    else {
-        var index = this.app.particleSystem.removeForce(this.attraction);
-    }
-};
-
-Siren.prototype.createParticles = function() {
-};
-
-Siren.prototype.createSynth = function() {
     this.synth = new SirenSynth(this.app.audiolet);
-    this.synth.connect(this.app.delay);
+    this.synth.connect(this.app.delay); 
 
     var frequencies = SirenSynth.FREQUENCIES;
     var index = Math.floor(Math.random() * frequencies.length);
@@ -1298,11 +1112,185 @@ Siren.prototype.createSynth = function() {
     this.synth.scheduler = this.app.audiolet.scheduler;
 };
 
-Siren.prototype.playNote = function(degree) {
+SirenAudio.prototype.playNote = function(degree) {
     this.synth.trigger.trigger.setValue(1);
     var frequency = this.app.scale.getFrequency(degree, this.app.rootFrequency,
                                                 this.octave);
     this.synth.pulse.frequency.setValue(frequency);
+};
+
+SirenAudio.prototype.stop = function() {
+    // Work around a race condition.  If the synth needs to be removed
+    // before it has been ticked for the first time, then the envelope
+    // never sees that the gate has been turned on, and the onComplete
+    // callback is never called.  If we have never ticked we are okay
+    // to manually remove the synth though.  Aces.
+    if (this.synth.sirenEnv.gateOn) {
+        this.synth.sirenEnv.gate.setValue(0);
+    }
+    else {
+        this.synth.removeWithEvent();
+    }
+};
+
+SirenAudio.prototype.getOutputChannel = function() {
+    return this.synth.outputs[0].outputs[0].buffer.channels[0];
+};
+
+var Siren = function(app) {
+    this.app = app;
+
+    this.numberOfPoints = 100;
+    this.radius = 8;
+    this.connected = false;
+    this.springIn = null;
+    this.springOut = null;
+
+    var yPos = app.height / 2 - 1;
+    var sides = this.app.level.getSides(yPos);
+    var xPos = Math.randomBetween(sides[0] + this.radius * 2,
+                                  sides[1] - this.radius * 2);
+    this.particle = this.app.particleSystem.createParticle();
+    this.particle.position[0] = xPos;
+    this.particle.position[1] = yPos;
+    this.particle.velocity[1] = -3;
+
+    this.transformation = new Transformation();
+
+    this.createAttraction();
+
+    this.mesh = new Mesh(this.numberOfPoints, gl.LINE_STRIP, gl.STATIC_DRAW,
+                         gl.STATIC_DRAW);
+    this.initAudioReactiveMesh();
+    this.initColors();
+
+    this.audio = null;
+};
+implement(Siren, AudioReactiveMesh);
+
+Siren.prototype.initColors = function() {
+    var colorBuffer = this.mesh.colorBuffer.array;
+
+    for (var i = 0; i < this.numberOfPoints; i++) {
+        colorBuffer[i * 4 + 0] = 1;
+        colorBuffer[i * 4 + 1] = 1;
+        colorBuffer[i * 4 + 2] = 1;
+        colorBuffer[i * 4 + 3] = 1;
+    }
+    this.mesh.colorBuffer.setValues();
+};
+
+Siren.prototype.createAttraction = function() {
+    this.attraction = new AttractionToGoodGuy(this.app.goodGuy.particle,
+                                              this.particle, 800, 20, 40);
+    this.app.particleSystem.forces.push(this.attraction);
+};
+
+Siren.prototype.removeAttraction = function() {
+    this.app.particleSystem.removeForce(this.attraction);
+};
+
+
+Siren.prototype.update = function() {
+    var position = this.particle.position;
+    var sides = this.app.level.getSides(position[1]);
+    if (position[1] < -this.app.height / 2 ||
+        position[0] < sides[0] ||
+        position[0] > sides[1]) {
+        this.remove();
+    }
+    else {
+        vec3.set(this.particle.position, this.transformation.position);
+        if (this.connected) {
+            var channel = this.audio.getOutputChannel();
+            this.updateVertices(channel);
+            this.createParticles();
+        }
+    }
+};
+
+Siren.prototype.draw = function() {
+    this.app.modelview.pushMatrix();
+    this.transformation.apply(this.app.modelview.matrix);
+    this.app.renderer.setUniform('uModelviewMatrix', this.app.modelview.matrix);
+    this.app.renderer.render(this.mesh);
+    this.app.modelview.popMatrix();
+};
+
+Siren.prototype.attach = function() {
+    var chain = this.app.chain;
+    var to = chain[chain.length - 1];
+
+    var spring;
+    if (to == this.app.goodGuy) {
+        // Connect to goodGuy
+        spring = new SpringToGoodGuy(to.particle, this.particle, 0.05, 0.5, 15);
+    }
+    else {
+        spring = new Spring(to.particle, this.particle, 0.05, 0.5, 15);
+    }
+    this.app.particleSystem.forces.push(spring);
+    to.springOut = spring;
+    this.springIn = spring;
+
+    this.connected = true;
+    this.removeAttraction()
+    this.audio = new SirenAudio(this.app);
+    chain.push(this);
+};
+
+Siren.prototype.remove = function() {
+    this.app.particleSystem.recycleParticle(this.particle);
+
+    var index = this.app.sirens.indexOf(this);
+    if (index != -1) {
+        this.app.sirens.splice(index, 1);
+    }
+
+    if (this.connected) {
+        this.connected = false;
+        var chain = this.app.chain;
+        var chainIndex = chain.indexOf(this);
+        var before = chain[chainIndex - 1]; 
+        var after = null;
+
+        if (chainIndex != chainIndex.length - 1) {
+            after = chain[chainIndex + 1];
+        }
+
+        this.app.particleSystem.removeForce(this.springIn);
+        this.springIn = null;
+        before.springOut = null;
+
+        if (after) {
+            this.app.particleSystem.removeForce(this.springOut);
+            this.springOut = null;
+            after.springIn = null;
+            
+            // Create new spring
+            var spring;
+            if (before == this.app.goodGuy) {
+                spring = new SpringToGoodGuy(before.particle,
+                                             after.particle, 0.05, 0.5, 15);
+            }
+            else {
+                spring = new Spring(before.particle, after.particle,
+                                    0.05, 0.5, 15);
+            }
+            this.app.particleSystem.forces.push(spring);
+            before.springOut = spring;
+            after.springIn = spring;
+        }
+        chain.splice(chainIndex, 1);
+
+        this.audio.stop();
+    }
+    else {
+        this.removeAttraction();
+    }
+};
+
+Siren.prototype.createParticles = function() {
 };
 
 // Each siren is a mono-synth, with a global env for fade in on creation,
@@ -1313,7 +1301,7 @@ var SirenSynth = function(audiolet) {
     this.scheduler = null;
 
     // Basic waves
-    this.pulse = new Pulse(audiolet, 440);//, 0.2 + Math.random() * 0.7);
+    this.pulse = new Pulse(audiolet, 440);
 
     // Note on trigger
     this.trigger = new TriggerControl(audiolet);
@@ -1368,8 +1356,8 @@ SirenSynth.FREQUENCIES = [[0, 1, 2],
 var SpiralSiren = function(app) {
     Siren.call(this, app);
     this.phase = 0;
-    this.frequency = -0.5 + Math.random() * 0.5;
-    this.numberOfOutputs = Math.floor(2 + Math.random() * 9);
+    this.frequency = Math.randomBetween(-0.5, 0.5);
+    this.numberOfOutputs = Math.round(Math.randomBetween(1.5, 10.5));
 };
 extend(SpiralSiren, Siren);
 
