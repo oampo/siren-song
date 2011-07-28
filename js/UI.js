@@ -7,47 +7,99 @@ var UI = function(app) {
     this.haveShownHighScore = false;
 
     this.countdown = 3;
-    this.flashCount = 0;
-    this.flashInterval = null;
-    this.highScoreOn = false;
+    this.countdownInterval = null;
+    this.isCountingDown = false;
+    this.needDrawCountdown = false;
+    this.needClearCountdown = false;
 
-    this.draw();
+    this.flash = 0;
+    this.flashInterval = null;
+    this.isFlashing = false;
+    this.flashOn = false;
+    this.needDrawFlash = false;
+    this.needClearFlash = false;
+
+    this.lastScore = -1;
+    this.lastHighScore = -1;
 };
 
 UI.prototype.draw = function() {
-//    this.canvas.width = this.canvas.width;
-    this.context.clearRect(0, 0, this.canvas.width, 36);
-    this.context.font = '36px \'Orbitron\', sans-serif';
-    this.context.textBaseline = "top";
-    this.context.textAlign = 'left';
-    this.context.fillStyle = '#00FF00';
-    this.context.fillText(this.app.score.score.toString(), 0, 0);
+    var score = this.app.score.score;
+    var highScore = this.app.score.highScore;
 
-    this.context.clearRect(this.canvas.width / 2 - 36,
-                           this.canvas.height / 2 - 36,
-                           this.canvas.width / 2 + 36,
-                           this.canvas.height / 2 + 36);
-    if (this.highScoreOn) {
+    var needDrawScore = (score != this.lastScore);
+    var needDrawHighScore = (highScore != this.lastHighScore);
+
+    if (needDrawScore ||
+        needDrawHighScore ||
+        this.needDrawFlash) {
+        if (this.context.font != '36px \'Orbitron\', sans-serif') {
+            this.context.font = '36px \'Orbitron\', sans-serif';
+        }
+        this.context.textBaseline = "top";
+    }
+
+    if (needDrawScore) {
+        this.context.clearRect(0, 0, this.canvas.width / 3, 36);
+        this.context.textAlign = 'left';
+        this.context.fillStyle = '#00FF00';
+        this.context.fillText(score.toString(), 0, 0);
+    }
+
+    if (needDrawHighScore) {
+        this.context.clearRect(2 * this.canvas.width / 3, 0,
+                               this.canvas.width / 3, 36);
+        this.context.textAlign = 'right';
+        this.context.fillStyle = '#FF0000';
+        this.context.fillText(highScore.toString(),
+                              this.canvas.width, 0);
+    }
+
+
+    if (this.needDrawFlash || this.countdown) {
         this.context.textAlign ='center';
         this.context.fillStyle = '#FFFFFF';
-        this.context.fillText("High Score", this.canvas.width / 2, 0);
     }
 
-    this.context.textAlign = 'right';
-    this.context.fillStyle = '#FF0000';
-    this.context.fillText(this.app.score.highScore.toString(),
-                          this.canvas.width, 0);
+    if (this.needDrawFlash) {
+        this.context.fillText("High Score", this.canvas.width / 2, 0);
+        this.needDrawFlash = false;
+    }
 
-    if (this.countdown) {
+    if (this.needClearFlash) {
+        this.context.clearRect(this.canvas.width / 3, 0,
+                               this.canvas.width / 3, 36);
+        this.needClearFlash = false;
+    }
+
+    if (this.needDrawCountdown ||
+        this.needClearCountdown) {
+        this.context.clearRect(this.canvas.width / 2 - 36,
+                               this.canvas.height / 2, 72, 72);
+        this.needClearCountdown = false;
+    }
+
+
+    if (this.needDrawCountdown) {
         this.context.textBaseline = "middle";
-        this.context.textAlign = 'center';
-        this.context.font = '72px \'Orbitron\', sans-serif';
-        this.context.fillStyle = '#FFFFFF';
+        if (this.context.font != '72px \'Orbitron\', sans-serif') {
+            this.context.font = '72px \'Orbitron\', sans-serif';
+        }
         this.context.fillText(this.countdown.toString(),
                               this.canvas.width / 2,
-                              36 + this.canvas.height / 2);
+                              this.canvas.height / 2 + 36);
+        this.needDrawCountdown = false;
     }
+
+    this.lastScore = score;
+    this.lastHighScore = highScore;
 };
+
+UI.prototype.clearCountdown = function() {
+    this.context.clearRect(this.canvas.width / 2 - 36,
+                           this.canvas.height / 2, 72, 72);
+}
+
 
 UI.prototype.updateScore = function() {
     var score = this.app.score.score;
@@ -63,34 +115,47 @@ UI.prototype.updateScore = function() {
 };
 
 UI.prototype.flashHighScore = function() {
-    if (this.flashInterval) {
+    if (this.isFlashing) {
         return;
     }
-    this.flashCount = 0;
-
+    this.flash = 0;
+    this.isFlashing = true;
     this.flashInterval = setInterval(this.doFlashHighScore.bind(this), 500);
 };
 
 UI.prototype.doFlashHighScore = function() {
-    this.flashCount += 1;
-    this.highScoreOn = !this.highScoreOn;
+    this.flash += 1;
+    this.flashOn = !this.flashOn;
+    this.needDrawFlash = this.flashOn;
+    this.needClearFlash = !this.flashOn;
 
-    if (this.flashCount == 10) {
+    if (this.flash == 10) {
         clearInterval(this.flashInterval);
+        this.isFlashing = false;
         this.flashInterval = null;
     }
 };
 
 UI.prototype.startCountdown = function() {
     this.countdown = 3;
-    this.app.shouldUpdate = false;
+    this.isCountingDown = true;
     this.countdownInterval = setInterval(this.doCountdown.bind(this), 1000);
+    this.needDrawCountdown = true;
+
+    this.app.shouldUpdate = false;
 };
 
 UI.prototype.doCountdown = function() {
     this.countdown -= 1;
+    this.needDrawCountdown = true;
+
     if (this.countdown == 0) {
         clearInterval(this.countdownInterval);
+        this.isCountingDown = false;
+        this.countdownInterval = null;
+        this.needDrawCountdown = false;
+        this.needClearCountdown = true;
+
         this.app.shouldUpdate = true;
     }
 };

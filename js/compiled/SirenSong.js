@@ -223,7 +223,7 @@ extend(FeedbackDelay, AudioletGroup);
 var GoodGuy = function(app) {
     this.app = app;
 
-    this.radius = 8;
+    this.radius = 12;
     this.chain = [];
     this.springOut = null;
 
@@ -232,35 +232,41 @@ var GoodGuy = function(app) {
     this.particle = this.app.particleSystem.createParticle();
     this.particle.position[0] = middle;
 
-    var numberOfPoints = 80;
-    var numberOfSpirals = 3;
-    var spacing = 3;
+    this.numberOfPoints = 100;
 
-    this.mesh = new Mesh(numberOfPoints, gl.LINE_STRIP, gl.STATIC_DRAW,
+    this.mesh = new Mesh(this.numberOfPoints, gl.LINE_STRIP, gl.STATIC_DRAW,
                          gl.STATIC_DRAW);
     var vertexBuffer = this.mesh.vertexBuffer.array;
     var colorBuffer = this.mesh.colorBuffer.array;
 
-    for (var i = 0; i < numberOfPoints; i++) {
-        var theta = numberOfSpirals * i * 2 * Math.PI / numberOfPoints;
-        vertexBuffer[i * 3 + 0] = 5 * theta * Math.sin(theta) / (2 * Math.PI);
-        vertexBuffer[i * 3 + 1] = 5 * theta * Math.cos(theta) / (2 * Math.PI);
+    var dTheta = 2 * Math.PI / this.numberOfPoints;
+    var dHue = 1 / this.numberOfPoints;
+    for (var i = 0; i < this.numberOfPoints; i++) {
+        var theta = i * dTheta;
+        var hue = i * dHue;
+        vertexBuffer[i * 3 + 0] = this.radius * Math.sin(theta);
+        vertexBuffer[i * 3 + 1] = this.radius * Math.cos(theta);
         vertexBuffer[i * 3 + 2] = 0;
-        colorBuffer[i * 4 + 0] = 1;
-        colorBuffer[i * 4 + 1] = 1;
-        colorBuffer[i * 4 + 2] = 1;
-        colorBuffer[i * 4 + 3] = 1;
+
+        var color = Color.hsvaToRGBA(hue, 1, 1, 1);
+        colorBuffer[i * 4 + 0] = color[0];
+        colorBuffer[i * 4 + 1] = color[1];
+        colorBuffer[i * 4 + 2] = color[2];
+        colorBuffer[i * 4 + 3] = color[3];
     }
     this.mesh.vertexBuffer.setValues();
     this.mesh.colorBuffer.setValues();
 
     this.transformation = new Transformation();
+
+    this.lastChannel = null;
+    this.channelPosition = 0;
+    this.framesPerChannel = 0;
+    this.angle = 0;
 };
 
 GoodGuy.prototype.update = function() {
     var sides = this.app.level.getSides(0);
-/*    this.model.rotation.z -= 0.3;
-    this.model.update(); */
 
     if (this.particle.position[0] < -this.app.width / 2 ||
         this.particle.position[0] > this.app.width / 2 ||
@@ -280,15 +286,57 @@ GoodGuy.prototype.update = function() {
 
     this.handleSirenCollisions();
 
+    this.updateMesh();
+
+    this.angle += 0.2;
+    quat4.set([Math.cos(this.angle / 2), Math.sin(this.angle / 2), 0, 0],
+              this.transformation.rotation);
     vec3.set(this.particle.position, this.transformation.position);
 };
 
+GoodGuy.prototype.updateMesh = function() {
+    var channel = this.app.crusher.outputs[0].buffer.channels[0];
+    if (channel == this.lastChannel) {
+        if (this.channelPosition < this.framesPerChannel - 1) {
+            this.channelPosition += 1;
+        }
+    }
+    else {
+        this.channelPosition = 0;
+        var sampleRate = this.app.audiolet.device.sampleRate;
+        var blockLength = channel.length / sampleRate;
+        var frameRate = 1 / 60;
+        this.framesPerChannel = Math.floor(blockLength / frameRate);
+        this.framesPerChannel = Math.max(this.framesPerChannel, 1);
+    }
+    this.lastChannel = channel;
+
+    var vertexBuffer = this.mesh.vertexBuffer.array;
+
+    var dTheta = 2 * Math.PI / this.numberOfPoints;
+
+    var samples = Math.floor(channel.length / this.framesPerChannel);
+    var iIndex = this.channelPosition * samples;
+    var dIndex = Math.floor(samples / this.numberOfPoints);
+    for (var i = 0; i < this.numberOfPoints; i++) {
+        var theta = i * dTheta;
+        var index = iIndex + i * dIndex;
+        var sample = channel[index] * 3;
+        vertexBuffer[i * 3 + 0] = this.radius * (Math.sin(theta) + sample);
+        vertexBuffer[i * 3 + 1] = this.radius * (Math.cos(theta) + sample);
+        vertexBuffer[i * 3 + 2] = 0;
+    };
+    this.mesh.vertexBuffer.setValues();
+};
+
 GoodGuy.prototype.draw = function() {
+    gl.lineWidth(3);
     this.app.modelview.pushMatrix();
     this.transformation.apply(this.app.modelview.matrix);
     this.app.renderer.setUniform('uModelviewMatrix', this.app.modelview.matrix);
     this.app.renderer.render(this.mesh);
     this.app.modelview.popMatrix();
+    gl.lineWidth(1);
 };
 
 GoodGuy.prototype.handleSirenCollisions = function() {
@@ -1042,7 +1090,7 @@ Score.prototype.decrease = function() {
 };
 var Siren = function(app) {
     this.app = app;
-    this.radius = 5;
+    this.radius = 8;
     this.connected = false;
     this.springIn = null;
     this.springOut = null;
@@ -1066,19 +1114,17 @@ var Siren = function(app) {
     this.app.particleSystem.forces.push(this.attraction);
 
 
-    var numberOfPoints = 40;
-    var numberOfSpirals = 2;
-    var spacing = 3;
-
-    this.mesh = new Mesh(numberOfPoints, gl.LINE_STRIP, gl.STATIC_DRAW,
+    this.numberOfPoints = 100;
+    this.mesh = new Mesh(this.numberOfPoints, gl.LINE_STRIP, gl.STATIC_DRAW,
                          gl.STATIC_DRAW);
     var vertexBuffer = this.mesh.vertexBuffer.array;
     var colorBuffer = this.mesh.colorBuffer.array;
 
-    for (var i = 0; i < numberOfPoints; i++) {
-        var theta = numberOfSpirals * i * 2 * Math.PI / numberOfPoints;
-        vertexBuffer[i * 3 + 0] = 5 * theta * Math.sin(theta) / (2 * Math.PI);
-        vertexBuffer[i * 3 + 1] = 5 * theta * Math.cos(theta) / (2 * Math.PI);
+    var dTheta = 2 * Math.PI / (this.numberOfPoints - 1);
+    for (var i = 0; i < this.numberOfPoints; i++) {
+        var theta = i * dTheta;
+        vertexBuffer[i * 3 + 0] = this.radius * Math.sin(theta);
+        vertexBuffer[i * 3 + 1] = this.radius * Math.cos(theta);
         vertexBuffer[i * 3 + 2] = 0;
 
         colorBuffer[i * 4 + 0] = 1;
@@ -1089,6 +1135,10 @@ var Siren = function(app) {
     this.mesh.vertexBuffer.setValues();
     this.mesh.colorBuffer.setValues();
     this.transformation = new Transformation();
+
+    this.lastChannel = null;
+    this.channelPosition = 0;
+    this.framesPerChannel = 0;
 };
 
 Siren.prototype.update = function() {
@@ -1105,9 +1155,47 @@ Siren.prototype.update = function() {
     else {
         vec3.set(this.particle.position, this.transformation.position);
         if (this.connected) {
+            this.updateMesh();
             this.createParticles();
         }
     }
+};
+
+Siren.prototype.updateMesh = function() {
+    var channel = this.synth.outputs[0].outputs[0].buffer.channels[0];
+    if (channel == this.lastChannel) {
+        this.channelPosition += 1;
+        if (this.channelPosition >= this.framesPerChannel) {
+            this.channelPosition = this.framesPerChannel - 1;
+        }
+    }
+    else {
+        this.channelPosition = 0;
+        var sampleRate = this.app.audiolet.device.sampleRate;
+        var blockLength = channel.length / sampleRate;
+        var frameRate = 1 / 60;
+        this.framesPerChannel = Math.floor(blockLength / frameRate);
+        this.framesPerChannel = Math.max(this.framesPerChannel, 1);
+    }
+    this.lastChannel = channel;
+    var vertexBuffer = this.mesh.vertexBuffer.array;
+
+    var dTheta = 2 * Math.PI / (this.numberOfPoints - 1);
+
+    var samples = Math.floor(channel.length / this.framesPerChannel);
+    var iIndex = this.channelPosition * samples; 
+    var dIndex = Math.floor(samples / this.numberOfPoints);
+    for (var i = 0; i < this.numberOfPoints; i++) {
+        var theta = i * dTheta;
+        var index = iIndex + i * dIndex;
+        var sample = channel[index];
+        vertexBuffer[i * 3 + 0] = this.radius * (Math.sin(theta) +
+                                                 sample);
+        vertexBuffer[i * 3 + 1] = this.radius * (Math.cos(theta) +
+                                                 sample);
+        vertexBuffer[i * 3 + 2] = 0;
+    };
+    this.mesh.vertexBuffer.setValues();
 };
 
 Siren.prototype.draw = function() {
@@ -1280,9 +1368,7 @@ SirenSynth.FREQUENCIES = [[0, 1, 2],
 var SpiralSiren = function(app) {
     Siren.call(this, app);
     this.phase = 0;
-//    this.frequency = 0.05;
     this.frequency = -0.5 + Math.random() * 0.5;
-//    this.numberOfOutputs = 10;
     this.numberOfOutputs = Math.floor(2 + Math.random() * 9);
 };
 extend(SpiralSiren, Siren);
@@ -1395,47 +1481,99 @@ var UI = function(app) {
     this.haveShownHighScore = false;
 
     this.countdown = 3;
-    this.flashCount = 0;
-    this.flashInterval = null;
-    this.highScoreOn = false;
+    this.countdownInterval = null;
+    this.isCountingDown = false;
+    this.needDrawCountdown = false;
+    this.needClearCountdown = false;
 
-    this.draw();
+    this.flash = 0;
+    this.flashInterval = null;
+    this.isFlashing = false;
+    this.flashOn = false;
+    this.needDrawFlash = false;
+    this.needClearFlash = false;
+
+    this.lastScore = -1;
+    this.lastHighScore = -1;
 };
 
 UI.prototype.draw = function() {
-//    this.canvas.width = this.canvas.width;
-    this.context.clearRect(0, 0, this.canvas.width, 36);
-    this.context.font = '36px \'Orbitron\', sans-serif';
-    this.context.textBaseline = "top";
-    this.context.textAlign = 'left';
-    this.context.fillStyle = '#00FF00';
-    this.context.fillText(this.app.score.score.toString(), 0, 0);
+    var score = this.app.score.score;
+    var highScore = this.app.score.highScore;
 
-    this.context.clearRect(this.canvas.width / 2 - 36,
-                           this.canvas.height / 2 - 36,
-                           this.canvas.width / 2 + 36,
-                           this.canvas.height / 2 + 36);
-    if (this.highScoreOn) {
+    var needDrawScore = (score != this.lastScore);
+    var needDrawHighScore = (highScore != this.lastHighScore);
+
+    if (needDrawScore ||
+        needDrawHighScore ||
+        this.needDrawFlash) {
+        if (this.context.font != '36px \'Orbitron\', sans-serif') {
+            this.context.font = '36px \'Orbitron\', sans-serif';
+        }
+        this.context.textBaseline = "top";
+    }
+
+    if (needDrawScore) {
+        this.context.clearRect(0, 0, this.canvas.width / 3, 36);
+        this.context.textAlign = 'left';
+        this.context.fillStyle = '#00FF00';
+        this.context.fillText(score.toString(), 0, 0);
+    }
+
+    if (needDrawHighScore) {
+        this.context.clearRect(2 * this.canvas.width / 3, 0,
+                               this.canvas.width / 3, 36);
+        this.context.textAlign = 'right';
+        this.context.fillStyle = '#FF0000';
+        this.context.fillText(highScore.toString(),
+                              this.canvas.width, 0);
+    }
+
+
+    if (this.needDrawFlash || this.countdown) {
         this.context.textAlign ='center';
         this.context.fillStyle = '#FFFFFF';
-        this.context.fillText("High Score", this.canvas.width / 2, 0);
     }
 
-    this.context.textAlign = 'right';
-    this.context.fillStyle = '#FF0000';
-    this.context.fillText(this.app.score.highScore.toString(),
-                          this.canvas.width, 0);
+    if (this.needDrawFlash) {
+        this.context.fillText("High Score", this.canvas.width / 2, 0);
+        this.needDrawFlash = false;
+    }
 
-    if (this.countdown) {
+    if (this.needClearFlash) {
+        this.context.clearRect(this.canvas.width / 3, 0,
+                               this.canvas.width / 3, 36);
+        this.needClearFlash = false;
+    }
+
+    if (this.needDrawCountdown ||
+        this.needClearCountdown) {
+        this.context.clearRect(this.canvas.width / 2 - 36,
+                               this.canvas.height / 2, 72, 72);
+        this.needClearCountdown = false;
+    }
+
+
+    if (this.needDrawCountdown) {
         this.context.textBaseline = "middle";
-        this.context.textAlign = 'center';
-        this.context.font = '72px \'Orbitron\', sans-serif';
-        this.context.fillStyle = '#FFFFFF';
+        if (this.context.font != '72px \'Orbitron\', sans-serif') {
+            this.context.font = '72px \'Orbitron\', sans-serif';
+        }
         this.context.fillText(this.countdown.toString(),
                               this.canvas.width / 2,
-                              36 + this.canvas.height / 2);
+                              this.canvas.height / 2 + 36);
+        this.needDrawCountdown = false;
     }
+
+    this.lastScore = score;
+    this.lastHighScore = highScore;
 };
+
+UI.prototype.clearCountdown = function() {
+    this.context.clearRect(this.canvas.width / 2 - 36,
+                           this.canvas.height / 2, 72, 72);
+}
+
 
 UI.prototype.updateScore = function() {
     var score = this.app.score.score;
@@ -1451,34 +1589,47 @@ UI.prototype.updateScore = function() {
 };
 
 UI.prototype.flashHighScore = function() {
-    if (this.flashInterval) {
+    if (this.isFlashing) {
         return;
     }
-    this.flashCount = 0;
-
+    this.flash = 0;
+    this.isFlashing = true;
     this.flashInterval = setInterval(this.doFlashHighScore.bind(this), 500);
 };
 
 UI.prototype.doFlashHighScore = function() {
-    this.flashCount += 1;
-    this.highScoreOn = !this.highScoreOn;
+    this.flash += 1;
+    this.flashOn = !this.flashOn;
+    this.needDrawFlash = this.flashOn;
+    this.needClearFlash = !this.flashOn;
 
-    if (this.flashCount == 10) {
+    if (this.flash == 10) {
         clearInterval(this.flashInterval);
+        this.isFlashing = false;
         this.flashInterval = null;
     }
 };
 
 UI.prototype.startCountdown = function() {
     this.countdown = 3;
-    this.app.shouldUpdate = false;
+    this.isCountingDown = true;
     this.countdownInterval = setInterval(this.doCountdown.bind(this), 1000);
+    this.needDrawCountdown = true;
+
+    this.app.shouldUpdate = false;
 };
 
 UI.prototype.doCountdown = function() {
     this.countdown -= 1;
+    this.needDrawCountdown = true;
+
     if (this.countdown == 0) {
         clearInterval(this.countdownInterval);
+        this.isCountingDown = false;
+        this.countdownInterval = null;
+        this.needDrawCountdown = false;
+        this.needClearCountdown = true;
+
         this.app.shouldUpdate = true;
     }
 };

@@ -1,6 +1,6 @@
 var Siren = function(app) {
     this.app = app;
-    this.radius = 5;
+    this.radius = 8;
     this.connected = false;
     this.springIn = null;
     this.springOut = null;
@@ -24,19 +24,17 @@ var Siren = function(app) {
     this.app.particleSystem.forces.push(this.attraction);
 
 
-    var numberOfPoints = 40;
-    var numberOfSpirals = 2;
-    var spacing = 3;
-
-    this.mesh = new Mesh(numberOfPoints, gl.LINE_STRIP, gl.STATIC_DRAW,
+    this.numberOfPoints = 100;
+    this.mesh = new Mesh(this.numberOfPoints, gl.LINE_STRIP, gl.STATIC_DRAW,
                          gl.STATIC_DRAW);
     var vertexBuffer = this.mesh.vertexBuffer.array;
     var colorBuffer = this.mesh.colorBuffer.array;
 
-    for (var i = 0; i < numberOfPoints; i++) {
-        var theta = numberOfSpirals * i * 2 * Math.PI / numberOfPoints;
-        vertexBuffer[i * 3 + 0] = 5 * theta * Math.sin(theta) / (2 * Math.PI);
-        vertexBuffer[i * 3 + 1] = 5 * theta * Math.cos(theta) / (2 * Math.PI);
+    var dTheta = 2 * Math.PI / (this.numberOfPoints - 1);
+    for (var i = 0; i < this.numberOfPoints; i++) {
+        var theta = i * dTheta;
+        vertexBuffer[i * 3 + 0] = this.radius * Math.sin(theta);
+        vertexBuffer[i * 3 + 1] = this.radius * Math.cos(theta);
         vertexBuffer[i * 3 + 2] = 0;
 
         colorBuffer[i * 4 + 0] = 1;
@@ -47,6 +45,10 @@ var Siren = function(app) {
     this.mesh.vertexBuffer.setValues();
     this.mesh.colorBuffer.setValues();
     this.transformation = new Transformation();
+
+    this.lastChannel = null;
+    this.channelPosition = 0;
+    this.framesPerChannel = 0;
 };
 
 Siren.prototype.update = function() {
@@ -63,9 +65,47 @@ Siren.prototype.update = function() {
     else {
         vec3.set(this.particle.position, this.transformation.position);
         if (this.connected) {
+            this.updateMesh();
             this.createParticles();
         }
     }
+};
+
+Siren.prototype.updateMesh = function() {
+    var channel = this.synth.outputs[0].outputs[0].buffer.channels[0];
+    if (channel == this.lastChannel) {
+        this.channelPosition += 1;
+        if (this.channelPosition >= this.framesPerChannel) {
+            this.channelPosition = this.framesPerChannel - 1;
+        }
+    }
+    else {
+        this.channelPosition = 0;
+        var sampleRate = this.app.audiolet.device.sampleRate;
+        var blockLength = channel.length / sampleRate;
+        var frameRate = 1 / 60;
+        this.framesPerChannel = Math.floor(blockLength / frameRate);
+        this.framesPerChannel = Math.max(this.framesPerChannel, 1);
+    }
+    this.lastChannel = channel;
+    var vertexBuffer = this.mesh.vertexBuffer.array;
+
+    var dTheta = 2 * Math.PI / (this.numberOfPoints - 1);
+
+    var samples = Math.floor(channel.length / this.framesPerChannel);
+    var iIndex = this.channelPosition * samples; 
+    var dIndex = Math.floor(samples / this.numberOfPoints);
+    for (var i = 0; i < this.numberOfPoints; i++) {
+        var theta = i * dTheta;
+        var index = iIndex + i * dIndex;
+        var sample = channel[index];
+        vertexBuffer[i * 3 + 0] = this.radius * (Math.sin(theta) +
+                                                 sample);
+        vertexBuffer[i * 3 + 1] = this.radius * (Math.cos(theta) +
+                                                 sample);
+        vertexBuffer[i * 3 + 2] = 0;
+    };
+    this.mesh.vertexBuffer.setValues();
 };
 
 Siren.prototype.draw = function() {
