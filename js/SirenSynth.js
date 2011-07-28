@@ -1,9 +1,10 @@
 // Each siren is a mono-synth, with a global env for fade in on creation,
 // and fade-out when we hit a wall
-var SirenSynth = function(audiolet) {
+var SirenSynth = function(app) {
+    var audiolet = app.audiolet;
     AudioletGroup.apply(this, [audiolet, 0, 1]);
+    this.app = app;
     this.event = null;
-    this.scheduler = null;
 
     // Basic waves
     this.pulse = new Pulse(audiolet, 440);
@@ -14,7 +15,7 @@ var SirenSynth = function(audiolet) {
     // Note envelope
     this.noteGain = new Gain(audiolet);
     this.noteEnv = new PercussiveEnvelope(audiolet, 0, 0.1, 0.1);
-    this.noteEnvMul = new Multiply(audiolet, 0.3);
+    this.noteEnvMul = new Multiply(audiolet, 0.08);
 
     // Siren envelope
     this.sirenGain = new Gain(audiolet);
@@ -38,8 +39,14 @@ var SirenSynth = function(audiolet) {
 extend(SirenSynth, AudioletGroup);
 
 SirenSynth.prototype.removeWithEvent = function() {
-    this.remove();
-    this.scheduler.stop(this.event);
+//    this.remove();
+    this.outputs[0].disconnect(this.app.delay);
+    this.audiolet.scheduler.stop(this.event);
+    this.app.synthPool.recycle(this);
+};
+
+SirenSynth.prototype.reset = function() {
+    this.sirenEnv.gate.setValue(1);
 };
 
 SirenSynth.DURATIONS = [1 / 3, 1 / 4];

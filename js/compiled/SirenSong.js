@@ -258,27 +258,6 @@ Color.PARTICLE_TABLE = [];
 for (var i = 0; i < numberOfColors; i++) {
     Color.PARTICLE_TABLE.push(Color.hsvaToRGBA(i / numberOfColors, 1, 1, 1));
 }
-var FeedbackDelay = function(audiolet, feedback, mix) {
-    AudioletGroup.apply(this, [audiolet, 1, 1]);
-
-    var delayTime = this.audiolet.scheduler.beatLength;
-    delayTime /= this.audiolet.device.sampleRate;
-
-    this.delay = new Delay(this.audiolet, delayTime, delayTime);
-    this.gain = new Gain(this.audiolet, feedback);
-    this.xfade = new CrossFade(this.audiolet, mix);
-
-
-    this.inputs[0].connect(this.delay);
-    this.inputs[0].connect(this.xfade);
-
-    this.delay.connect(this.gain);
-    this.gain.connect(this.delay);
-    this.delay.connect(this.xfade, 0, 1);
-    this.xfade.connect(this.outputs[0]);
-};
-extend(FeedbackDelay, AudioletGroup);
-
 var GoodGuy = function(app) {
     this.app = app;
 
@@ -698,8 +677,11 @@ window.onload = function() {
         this.audiolet = new Audiolet();
         this.scale = new MajorScale();
         this.rootFrequency = 16.352;
-        this.delay = new FeedbackDelay(this.audiolet, 0.9, 0.2);
-        this.reverb = new Reverb(this.audiolet, 0.9, 1, 0.5);
+        var delayTime = this.audiolet.scheduler.beatLength;
+        delayTime /= this.audiolet.device.sampleRate;
+        this.delay = new FeedbackDelay(this.audiolet, delayTime,
+                                       delayTime, 0.9, 0.2);
+        this.reverb = new Reverb(this.audiolet, 0.2, 1, 0.7);
         this.crusher = new BitCrusher(this.audiolet, 8);
         this.delay.connect(this.reverb);
         this.reverb.connect(this.crusher);
@@ -720,6 +702,8 @@ window.onload = function() {
         this.score = new Score(this);
 
         this.ui = new UI(this);
+
+        this.synthPool = new ObjectPool(SirenSynth, 10, this);
 
         this.update();
         this.draw();
@@ -747,11 +731,6 @@ window.onload = function() {
         if (Math.random() > 0.98) {
             this.sirens.push(new SpiralSiren(this));
         }
-        /*
-        if (!this.sirens.length) {
-            this.sirens.push(new Siren(this));
-        }
-        */
     };
 
     SirenSong.prototype.preUpdate = function() {
@@ -810,6 +789,53 @@ Math.randomBetween = function(a, b) {
     return a + Math.random() * (b - a);
 };
         
+var ObjectPool = function(ObjectType, numberOfObjects) {
+    this.ObjectType = ObjectType;
+    this.activeObjects = [];
+    this.inactiveObjects = [];
+
+    var args = Array.prototype.slice.call(arguments, 2);
+    for (var i=0; i<numberOfObjects; i++) {
+        this.inactiveObjects.push(this.construct(args));
+    }
+};
+
+ObjectPool.prototype.create = function() {
+    if (!this.inactiveObjects.length) {
+        for (var i=0; i<this.activeObjects.length * 3; i++) {
+            this.inactiveObjects.push(this.construct(arguments));
+        }
+    }
+
+    var object = this.inactiveObjects.pop();
+    this.activeObjects.push(object);
+    return object;
+};
+
+ObjectPool.prototype.recycle = function(object) {
+    if (typeof object.reset == "function") {
+        object.reset();
+    }
+    var index = this.activeObjects.indexOf(object);
+    this.activeObjects.splice(index, 1);
+    this.inactiveObjects.push(object);
+};
+
+ObjectPool.prototype.delete = function(object) {
+    var index = this.activeObjects.indexOf(object);
+    this.activeObjects.splice(index, 1);
+};
+
+ObjectPool.prototype.construct = function(args) {
+    var ObjectType = this.ObjectType;
+    function F(args) {
+        return ObjectType.apply(this, args);
+    }
+    F.prototype = this.ObjectType.prototype;
+
+    return new F(args);
+};
+
 var Particle = function() {
     this.mass = 1;
     this.position = vec3.create();
@@ -1093,7 +1119,8 @@ Score.prototype.decrease = function() {
 var SirenAudio = function(app) {
     this.app = app;
 
-    this.synth = new SirenSynth(this.app.audiolet);
+    this.synth = this.app.synthPool.create(this.app);
+//    this.synth = new SirenSynth(this.app);
     this.synth.connect(this.app.delay); 
 
     var frequencies = SirenSynth.FREQUENCIES;
@@ -1110,6 +1137,7 @@ var SirenAudio = function(app) {
                                                   this.playNote.bind(this));
     this.synth.event = event;
     this.synth.scheduler = this.app.audiolet.scheduler;
+    this.synth.pool = this.app.synthPool;
 };
 
 SirenAudio.prototype.playNote = function(degree) {
@@ -1203,7 +1231,7 @@ Siren.prototype.update = function() {
         vec3.set(this.particle.position, this.transformation.position);
         if (this.connected) {
             var channel = this.audio.getOutputChannel();
-            this.updateVertices(channel);
+            this.updateVertices(channel, 3);
             this.createParticles();
         }
     }
@@ -1295,10 +1323,11 @@ Siren.prototype.createParticles = function() {
 
 // Each siren is a mono-synth, with a global env for fade in on creation,
 // and fade-out when we hit a wall
-var SirenSynth = function(audiolet) {
+var SirenSynth = function(app) {
+    var audiolet = app.audiolet;
     AudioletGroup.apply(this, [audiolet, 0, 1]);
+    this.app = app;
     this.event = null;
-    this.scheduler = null;
 
     // Basic waves
     this.pulse = new Pulse(audiolet, 440);
@@ -1309,7 +1338,7 @@ var SirenSynth = function(audiolet) {
     // Note envelope
     this.noteGain = new Gain(audiolet);
     this.noteEnv = new PercussiveEnvelope(audiolet, 0, 0.1, 0.1);
-    this.noteEnvMul = new Multiply(audiolet, 0.3);
+    this.noteEnvMul = new Multiply(audiolet, 0.08);
 
     // Siren envelope
     this.sirenGain = new Gain(audiolet);
@@ -1333,8 +1362,14 @@ var SirenSynth = function(audiolet) {
 extend(SirenSynth, AudioletGroup);
 
 SirenSynth.prototype.removeWithEvent = function() {
-    this.remove();
-    this.scheduler.stop(this.event);
+//    this.remove();
+    this.outputs[0].disconnect(this.app.delay);
+    this.audiolet.scheduler.stop(this.event);
+    this.app.synthPool.recycle(this);
+};
+
+SirenSynth.prototype.reset = function() {
+    this.sirenEnv.gate.setValue(1);
 };
 
 SirenSynth.DURATIONS = [1 / 3, 1 / 4];
@@ -1345,14 +1380,6 @@ SirenSynth.FREQUENCIES = [[0, 1, 2],
                           [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
                           [0, 1, 2, 3, 4, 5, 6, 7,
                            8, 9, 10, 11, 12, 13, 14, 15]];
-/*
-SirenSynth.FREQUENCIES = [[0, 1, 2],
-                          [1, 0, 2],
-                          [2, 1, 0],
-                          [3, 4, 5],
-                          [4, 3, 5],
-                          [5, 4, 3]];
-*/
 var SpiralSiren = function(app) {
     Siren.call(this, app);
     this.phase = 0;

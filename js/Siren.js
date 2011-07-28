@@ -64,7 +64,7 @@ Siren.prototype.update = function() {
         vec3.set(this.particle.position, this.transformation.position);
         if (this.connected) {
             var channel = this.audio.getOutputChannel();
-            this.updateVertices(channel);
+            this.updateVertices(channel, 3);
             this.createParticles();
         }
     }

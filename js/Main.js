@@ -28,8 +28,11 @@ window.onload = function() {
         this.audiolet = new Audiolet();
         this.scale = new MajorScale();
         this.rootFrequency = 16.352;
-        this.delay = new FeedbackDelay(this.audiolet, 0.9, 0.2);
-        this.reverb = new Reverb(this.audiolet, 0.9, 1, 0.5);
+        var delayTime = this.audiolet.scheduler.beatLength;
+        delayTime /= this.audiolet.device.sampleRate;
+        this.delay = new FeedbackDelay(this.audiolet, delayTime,
+                                       delayTime, 0.9, 0.2);
+        this.reverb = new Reverb(this.audiolet, 0.2, 1, 0.7);
         this.crusher = new BitCrusher(this.audiolet, 8);
         this.delay.connect(this.reverb);
         this.reverb.connect(this.crusher);
@@ -50,6 +53,8 @@ window.onload = function() {
         this.score = new Score(this);
 
         this.ui = new UI(this);
+
+        this.synthPool = new ObjectPool(SirenSynth, 10, this);
 
         this.update();
         this.draw();

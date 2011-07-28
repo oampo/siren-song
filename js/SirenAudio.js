@@ -1,7 +1,8 @@
 var SirenAudio = function(app) {
     this.app = app;
 
-    this.synth = new SirenSynth(this.app.audiolet);
+    this.synth = this.app.synthPool.create(this.app);
+//    this.synth = new SirenSynth(this.app);
     this.synth.connect(this.app.delay); 
 
     var frequencies = SirenSynth.FREQUENCIES;
@@ -18,6 +19,7 @@ var SirenAudio = function(app) {
                                                   this.playNote.bind(this));
     this.synth.event = event;
     this.synth.scheduler = this.app.audiolet.scheduler;
+    this.synth.pool = this.app.synthPool;
 };
 
 SirenAudio.prototype.playNote = function(degree) {
