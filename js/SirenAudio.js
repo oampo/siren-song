@@ -3,7 +3,7 @@ var SirenAudio = function(app) {
 
     this.synth = this.app.synthPool.create(this.app);
 //    this.synth = new SirenSynth(this.app);
-    this.synth.connect(this.app.delay); 
+    this.synth.connect(this.app.dcFilter); 
 
     var frequencies = SirenSynth.FREQUENCIES;
     var index = Math.floor(Math.random() * frequencies.length);

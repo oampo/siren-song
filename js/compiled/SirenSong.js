@@ -677,12 +677,14 @@ window.onload = function() {
         this.audiolet = new Audiolet();
         this.scale = new MajorScale();
         this.rootFrequency = 16.352;
+        this.dcFilter = new DCFilter(this.audiolet);
         var delayTime = this.audiolet.scheduler.beatLength;
         delayTime /= this.audiolet.device.sampleRate;
         this.delay = new FeedbackDelay(this.audiolet, delayTime,
                                        delayTime, 0.9, 0.2);
         this.reverb = new Reverb(this.audiolet, 0.2, 1, 0.7);
         this.crusher = new BitCrusher(this.audiolet, 8);
+        this.dcFilter.connect(this.delay);
         this.delay.connect(this.reverb);
         this.reverb.connect(this.crusher);
         this.crusher.connect(this.audiolet.output);
@@ -1121,7 +1123,7 @@ var SirenAudio = function(app) {
 
     this.synth = this.app.synthPool.create(this.app);
 //    this.synth = new SirenSynth(this.app);
-    this.synth.connect(this.app.delay); 
+    this.synth.connect(this.app.dcFilter); 
 
     var frequencies = SirenSynth.FREQUENCIES;
     var index = Math.floor(Math.random() * frequencies.length);
@@ -1330,7 +1332,9 @@ var SirenSynth = function(app) {
     this.event = null;
 
     // Basic waves
-    this.pulse = new Pulse(audiolet, 440);
+    var pulseWidths = [0.125, 0.25, 0.5, 0.75];
+    var index = Math.floor(Math.random() * pulseWidths.length);
+    this.pulse = new Pulse(audiolet, 440, pulseWidths[index]);
 
     // Note on trigger
     this.trigger = new TriggerControl(audiolet);

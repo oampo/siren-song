@@ -7,7 +7,9 @@ var SirenSynth = function(app) {
     this.event = null;
 
     // Basic waves
-    this.pulse = new Pulse(audiolet, 440);
+    var pulseWidths = [0.125, 0.25, 0.5, 0.75];
+    var index = Math.floor(Math.random() * pulseWidths.length);
+    this.pulse = new Pulse(audiolet, 440, pulseWidths[index]);
 
     // Note on trigger
     this.trigger = new TriggerControl(audiolet);

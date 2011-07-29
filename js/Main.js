@@ -28,12 +28,14 @@ window.onload = function() {
         this.audiolet = new Audiolet();
         this.scale = new MajorScale();
         this.rootFrequency = 16.352;
+        this.dcFilter = new DCFilter(this.audiolet);
         var delayTime = this.audiolet.scheduler.beatLength;
         delayTime /= this.audiolet.device.sampleRate;
         this.delay = new FeedbackDelay(this.audiolet, delayTime,
                                        delayTime, 0.9, 0.2);
         this.reverb = new Reverb(this.audiolet, 0.2, 1, 0.7);
         this.crusher = new BitCrusher(this.audiolet, 8);
+        this.dcFilter.connect(this.delay);
         this.delay.connect(this.reverb);
         this.reverb.connect(this.crusher);
         this.crusher.connect(this.audiolet.output);
