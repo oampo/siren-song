@@ -1,4 +1,5 @@
-var AttractionToGoodGuy = function(a, b, k, distanceMin, distanceMax) {
+var AttractionToGoodGuy = function(app, a, b, k, distanceMin, distanceMax) {
+    this.app = app;
     this.a = a;
     this.b = b;
     this.k = k;
@@ -35,7 +36,9 @@ AttractionToGoodGuy.prototype.apply = function() {
     var distanceMinSquared = this.distanceMinSquared;
     var distanceMaxSquared = this.distanceMaxSquared;
 
-    var a2b = vec3.create();
+    var pool = this.app.vec3Pool;
+
+    var a2b = pool.create();
     vec3.subtract(a.position, b.position, a2b);
     var a2bDistance = vec3.length(a2b);
     var a2bDistanceSquared = Math.pow(a2bDistance, 2);
@@ -53,5 +56,6 @@ AttractionToGoodGuy.prototype.apply = function() {
 
         vec3.add(b.force, a2b);
     }
+    pool.recycle(a2b);
 };
 

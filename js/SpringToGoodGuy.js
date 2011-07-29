@@ -1,4 +1,5 @@
-var SpringToGoodGuy = function(a, b, springConstant, damping, restLength) {
+var SpringToGoodGuy = function(app, a, b, springConstant, damping, restLength) {
+    this.app = app;
     this.a = a;
     this.b = b;
     this.springConstant = springConstant;
@@ -20,8 +21,9 @@ SpringToGoodGuy.prototype.apply = function() {
     var restLength = this.restLength;
     var springConstant = this.springConstant;
     var damping = this.damping;
+    var pool = this.app.vec3Pool;
 
-    var a2b = vec3.create();
+    var a2b = pool.create();
     vec3.subtract(a.position, b.position, a2b);
     var a2bDistance = vec3.length(a2b);
 
@@ -32,7 +34,7 @@ SpringToGoodGuy.prototype.apply = function() {
     }
 
     var springForce = -(a2bDistance - restLength) * springConstant;
-    var vA2b = vec3.create();
+    var vA2b = pool.create();
     vec3.subtract(a.velocity, b.velocity, vA2b);
     var dampingForce = -damping * vec3.dot(a2b, vA2b);
     var r = springForce + dampingForce;
@@ -40,4 +42,7 @@ SpringToGoodGuy.prototype.apply = function() {
     vec3.scale(a2b, r);
 
     vec3.add(b.force, vec3.negate(a2b));
+
+    pool.recycle(a2b);
+    pool.recycle(vA2b);
 };

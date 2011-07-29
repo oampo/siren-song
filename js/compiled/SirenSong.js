@@ -1,4 +1,5 @@
-var AttractionToGoodGuy = function(a, b, k, distanceMin, distanceMax) {
+var AttractionToGoodGuy = function(app, a, b, k, distanceMin, distanceMax) {
+    this.app = app;
     this.a = a;
     this.b = b;
     this.k = k;
@@ -35,7 +36,9 @@ AttractionToGoodGuy.prototype.apply = function() {
     var distanceMinSquared = this.distanceMinSquared;
     var distanceMaxSquared = this.distanceMaxSquared;
 
-    var a2b = vec3.create();
+    var pool = this.app.vec3Pool;
+
+    var a2b = pool.create();
     vec3.subtract(a.position, b.position, a2b);
     var a2bDistance = vec3.length(a2b);
     var a2bDistanceSquared = Math.pow(a2bDistance, 2);
@@ -53,6 +56,7 @@ AttractionToGoodGuy.prototype.apply = function() {
 
         vec3.add(b.force, a2b);
     }
+    pool.recycle(a2b);
 };
 
 var AudioReactiveMesh = {};
@@ -707,7 +711,12 @@ window.onload = function() {
 
         this.ui = new UI(this);
 
-        this.synthPool = new ObjectPool(SirenSynth, 10, this);
+        this.synthPool = new ObjectPool(function(app) {
+            return new SirenSynth(app);
+        }, 10, this);
+        this.vec3Pool = new ObjectPool(function(app) {
+            return new Float32Array(3);
+        }, 30);
 
         this.update();
         this.draw();
@@ -793,26 +802,26 @@ Math.randomBetween = function(a, b) {
     return a + Math.random() * (b - a);
 };
         
-var ObjectPool = function(ObjectType, numberOfObjects) {
-    this.ObjectType = ObjectType;
-    this.activeObjects = [];
-    this.inactiveObjects = [];
+var ObjectPool = function(construct, numberOfObjects) {
+    this.construct = construct;
+    this.numberOfObjects = numberOfObjects;
+    this.objects = [];
 
     var args = Array.prototype.slice.call(arguments, 2);
     for (var i=0; i<numberOfObjects; i++) {
-        this.inactiveObjects.push(this.construct(args));
+        this.objects.push(this.construct.apply(this, args));
     }
 };
 
 ObjectPool.prototype.create = function() {
-    if (!this.inactiveObjects.length) {
-        for (var i=0; i<this.activeObjects.length * 3; i++) {
-            this.inactiveObjects.push(this.construct(arguments));
+    if (!this.objects.length) {
+        this.numberOfObjects *= 3;
+        for (var i=0; i<this.numberOfObjects; i++) {
+            this.objects.push(this.construct.apply(this, arguments));
         }
     }
 
-    var object = this.inactiveObjects.pop();
-    this.activeObjects.push(object);
+    var object = this.objects.pop();
     return object;
 };
 
@@ -820,24 +829,7 @@ ObjectPool.prototype.recycle = function(object) {
     if (typeof object.reset == "function") {
         object.reset();
     }
-    var index = this.activeObjects.indexOf(object);
-    this.activeObjects.splice(index, 1);
-    this.inactiveObjects.push(object);
-};
-
-ObjectPool.prototype.delete = function(object) {
-    var index = this.activeObjects.indexOf(object);
-    this.activeObjects.splice(index, 1);
-};
-
-ObjectPool.prototype.construct = function(args) {
-    var ObjectType = this.ObjectType;
-    function F(args) {
-        return ObjectType.apply(this, args);
-    }
-    F.prototype = this.ObjectType.prototype;
-
-    return new F(args);
+    this.objects.push(object);
 };
 
 var OctaveDistributor = function() {
@@ -1225,7 +1217,8 @@ Siren.prototype.initColors = function() {
 };
 
 Siren.prototype.createAttraction = function() {
-    this.attraction = new AttractionToGoodGuy(this.app.goodGuy.particle,
+    this.attraction = new AttractionToGoodGuy(this.app,
+                                              this.app.goodGuy.particle,
                                               this.particle, 800, 20, 40);
     this.app.particleSystem.forces.push(this.attraction);
 };
@@ -1268,10 +1261,12 @@ Siren.prototype.attach = function() {
     var spring;
     if (to == this.app.goodGuy) {
         // Connect to goodGuy
-        spring = new SpringToGoodGuy(to.particle, this.particle, 0.05, 0.5, 15);
+        spring = new SpringToGoodGuy(this.app, to.particle, this.particle,
+                                     0.05, 0.5, 15);
     }
     else {
-        spring = new Spring(to.particle, this.particle, 0.05, 0.5, 15);
+        spring = new Spring(this.app, to.particle, this.particle,
+                            0.05, 0.5, 15);
     }
     this.app.particleSystem.forces.push(spring);
     to.springOut = spring;
@@ -1314,11 +1309,11 @@ Siren.prototype.remove = function() {
             // Create new spring
             var spring;
             if (before == this.app.goodGuy) {
-                spring = new SpringToGoodGuy(before.particle,
+                spring = new SpringToGoodGuy(this.app, before.particle,
                                              after.particle, 0.05, 0.5, 15);
             }
             else {
-                spring = new Spring(before.particle, after.particle,
+                spring = new Spring(this.app, before.particle, after.particle,
                                     0.05, 0.5, 15);
             }
             this.app.particleSystem.forces.push(spring);
@@ -1417,7 +1412,8 @@ SpiralSiren.prototype.createParticles = function() {
     this.phase += this.frequency * 2 * Math.PI;
 };
 
-var Spring = function(a, b, springConstant, damping, restLength) {
+var Spring = function(app, a, b, springConstant, damping, restLength) {
+    this.app = app;
     this.a = a;
     this.b = b;
     this.springConstant = springConstant;
@@ -1439,8 +1435,9 @@ Spring.prototype.apply = function() {
     var restLength = this.restLength;
     var springConstant = this.springConstant;
     var damping = this.damping;
+    var pool = this.app.vec3Pool;
 
-    var a2b = vec3.create();
+    var a2b = pool.create();
     vec3.subtract(a.position, b.position, a2b);
     var a2bDistance = vec3.length(a2b);
 
@@ -1451,7 +1448,7 @@ Spring.prototype.apply = function() {
     }
 
     var springForce = -(a2bDistance - restLength) * springConstant;
-    var vA2b = vec3.create();
+    var vA2b = this.app.vec3Pool.create();
     vec3.subtract(a.velocity, b.velocity, vA2b);
     var dampingForce = -damping * vec3.dot(a2b, vA2b);
     var r = springForce + dampingForce;
@@ -1461,8 +1458,12 @@ Spring.prototype.apply = function() {
     vec3.add(a.force, a2b);
     // Can negate without a new vec3 as we don't use a2b again
     vec3.add(b.force, vec3.negate(a2b));
+
+    pool.recycle(a2b);
+    pool.recycle(vA2b);
 };
-var SpringToGoodGuy = function(a, b, springConstant, damping, restLength) {
+var SpringToGoodGuy = function(app, a, b, springConstant, damping, restLength) {
+    this.app = app;
     this.a = a;
     this.b = b;
     this.springConstant = springConstant;
@@ -1484,8 +1485,9 @@ SpringToGoodGuy.prototype.apply = function() {
     var restLength = this.restLength;
     var springConstant = this.springConstant;
     var damping = this.damping;
+    var pool = this.app.vec3Pool;
 
-    var a2b = vec3.create();
+    var a2b = pool.create();
     vec3.subtract(a.position, b.position, a2b);
     var a2bDistance = vec3.length(a2b);
 
@@ -1496,7 +1498,7 @@ SpringToGoodGuy.prototype.apply = function() {
     }
 
     var springForce = -(a2bDistance - restLength) * springConstant;
-    var vA2b = vec3.create();
+    var vA2b = pool.create();
     vec3.subtract(a.velocity, b.velocity, vA2b);
     var dampingForce = -damping * vec3.dot(a2b, vA2b);
     var r = springForce + dampingForce;
@@ -1504,6 +1506,9 @@ SpringToGoodGuy.prototype.apply = function() {
     vec3.scale(a2b, r);
 
     vec3.add(b.force, vec3.negate(a2b));
+
+    pool.recycle(a2b);
+    pool.recycle(vA2b);
 };
 var UI = function(app) {
     this.app = app;

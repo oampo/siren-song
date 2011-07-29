@@ -58,7 +58,12 @@ window.onload = function() {
 
         this.ui = new UI(this);
 
-        this.synthPool = new ObjectPool(SirenSynth, 10, this);
+        this.synthPool = new ObjectPool(function(app) {
+            return new SirenSynth(app);
+        }, 10, this);
+        this.vec3Pool = new ObjectPool(function(app) {
+            return new Float32Array(3);
+        }, 30);
 
         this.update();
         this.draw();

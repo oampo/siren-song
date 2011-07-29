@@ -42,7 +42,8 @@ Siren.prototype.initColors = function() {
 };
 
 Siren.prototype.createAttraction = function() {
-    this.attraction = new AttractionToGoodGuy(this.app.goodGuy.particle,
+    this.attraction = new AttractionToGoodGuy(this.app,
+                                              this.app.goodGuy.particle,
                                               this.particle, 800, 20, 40);
     this.app.particleSystem.forces.push(this.attraction);
 };
@@ -85,10 +86,12 @@ Siren.prototype.attach = function() {
     var spring;
     if (to == this.app.goodGuy) {
         // Connect to goodGuy
-        spring = new SpringToGoodGuy(to.particle, this.particle, 0.05, 0.5, 15);
+        spring = new SpringToGoodGuy(this.app, to.particle, this.particle,
+                                     0.05, 0.5, 15);
     }
     else {
-        spring = new Spring(to.particle, this.particle, 0.05, 0.5, 15);
+        spring = new Spring(this.app, to.particle, this.particle,
+                            0.05, 0.5, 15);
     }
     this.app.particleSystem.forces.push(spring);
     to.springOut = spring;
@@ -131,11 +134,11 @@ Siren.prototype.remove = function() {
             // Create new spring
             var spring;
             if (before == this.app.goodGuy) {
-                spring = new SpringToGoodGuy(before.particle,
+                spring = new SpringToGoodGuy(this.app, before.particle,
                                              after.particle, 0.05, 0.5, 15);
             }
             else {
-                spring = new Spring(before.particle, after.particle,
+                spring = new Spring(this.app, before.particle, after.particle,
                                     0.05, 0.5, 15);
             }
             this.app.particleSystem.forces.push(spring);
