@@ -17,7 +17,7 @@ var SirenSynth = function(app) {
     // Note envelope
     this.noteGain = new Gain(audiolet);
     this.noteEnv = new PercussiveEnvelope(audiolet, 0, 0.1, 0.1);
-    this.noteEnvMul = new Multiply(audiolet, 0.08);
+    this.noteEnvMul = new Multiply(audiolet, 0.1);
 
     // Siren envelope
     this.sirenGain = new Gain(audiolet);
@@ -42,7 +42,7 @@ extend(SirenSynth, AudioletGroup);
 
 SirenSynth.prototype.removeWithEvent = function() {
 //    this.remove();
-    this.outputs[0].disconnect(this.app.delay);
+    this.outputs[0].disconnect(this.app.dcFilter);
     this.audiolet.scheduler.stop(this.event);
     this.app.synthPool.recycle(this);
 };

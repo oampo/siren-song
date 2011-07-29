@@ -676,7 +676,9 @@ window.onload = function() {
 
         this.audiolet = new Audiolet();
         this.scale = new MajorScale();
+        this.octaveDistributor = new OctaveDistributor();
         this.rootFrequency = 16.352;
+
         this.dcFilter = new DCFilter(this.audiolet);
         var delayTime = this.audiolet.scheduler.beatLength;
         delayTime /= this.audiolet.device.sampleRate;
@@ -838,6 +840,17 @@ ObjectPool.prototype.construct = function(args) {
     return new F(args);
 };
 
+var OctaveDistributor = function() {
+    this.octaves = [];
+};
+
+OctaveDistributor.prototype.getOctave = function() {
+    if (!this.octaves.length) {
+        this.octaves = [2, 3, 4, 5, 6];
+    }
+    var index = Math.floor(Math.random() * this.octaves.length);
+    return this.octaves.splice(index, 1)[0];
+};
 var Particle = function() {
     this.mass = 1;
     this.position = vec3.create();
@@ -1132,7 +1145,8 @@ var SirenAudio = function(app) {
     var durations = SirenSynth.DURATIONS;
     var index = Math.floor(Math.random() * durations.length);
     this.durationPattern = new PSequence([durations[index]], Infinity);
-    this.octave = 2 + Math.floor(Math.random() * 5);
+//    this.octave = 2 + Math.floor(Math.random() * 5);
+    this.octave = this.app.octaveDistributor.getOctave();
 
     var event = this.app.audiolet.scheduler.play([this.frequencyPattern],
                                                   this.durationPattern,
@@ -1342,7 +1356,7 @@ var SirenSynth = function(app) {
     // Note envelope
     this.noteGain = new Gain(audiolet);
     this.noteEnv = new PercussiveEnvelope(audiolet, 0, 0.1, 0.1);
-    this.noteEnvMul = new Multiply(audiolet, 0.08);
+    this.noteEnvMul = new Multiply(audiolet, 0.1);
 
     // Siren envelope
     this.sirenGain = new Gain(audiolet);
@@ -1367,7 +1381,7 @@ extend(SirenSynth, AudioletGroup);
 
 SirenSynth.prototype.removeWithEvent = function() {
 //    this.remove();
-    this.outputs[0].disconnect(this.app.delay);
+    this.outputs[0].disconnect(this.app.dcFilter);
     this.audiolet.scheduler.stop(this.event);
     this.app.synthPool.recycle(this);
 };

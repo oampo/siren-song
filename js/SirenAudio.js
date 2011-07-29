@@ -12,7 +12,8 @@ var SirenAudio = function(app) {
     var durations = SirenSynth.DURATIONS;
     var index = Math.floor(Math.random() * durations.length);
     this.durationPattern = new PSequence([durations[index]], Infinity);
-    this.octave = 2 + Math.floor(Math.random() * 5);
+//    this.octave = 2 + Math.floor(Math.random() * 5);
+    this.octave = this.app.octaveDistributor.getOctave();
 
     var event = this.app.audiolet.scheduler.play([this.frequencyPattern],
                                                   this.durationPattern,

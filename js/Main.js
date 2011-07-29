@@ -27,7 +27,9 @@ window.onload = function() {
 
         this.audiolet = new Audiolet();
         this.scale = new MajorScale();
+        this.octaveDistributor = new OctaveDistributor();
         this.rootFrequency = 16.352;
+
         this.dcFilter = new DCFilter(this.audiolet);
         var delayTime = this.audiolet.scheduler.beatLength;
         delayTime /= this.audiolet.device.sampleRate;
