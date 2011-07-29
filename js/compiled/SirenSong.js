@@ -321,8 +321,8 @@ GoodGuy.prototype.update = function() {
 
     this.handleSirenCollisions();
 
-//    var channel = this.app.crusher.outputs[0].buffer.channels[0];
-//    this.updateVertices(channel, 2);
+    var channel = this.app.crusher.outputs[0].buffer.channels[0];
+    this.updateVertices(channel, 2);
 
     this.angle += 0.2;
     quat4.set([Math.cos(this.angle / 2), Math.sin(this.angle / 2), 0, 0],
@@ -1239,8 +1239,8 @@ Siren.prototype.update = function() {
     else {
         vec3.set(this.particle.position, this.transformation.position);
         if (this.connected) {
-//            var channel = this.audio.getOutputChannel();
-//            this.updateVertices(channel, 3);
+            var channel = this.audio.getOutputChannel();
+            this.updateVertices(channel, 3);
             this.createParticles();
         }
     }
