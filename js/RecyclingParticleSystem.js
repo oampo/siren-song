@@ -1,7 +1,7 @@
 var RecyclingParticleSystem = function(numberOfParticles) {
     ParticleSystem.call(this);
     this.oldParticles = [];
-    for (var i=0; i<numberOfParticles; i++) {
+    for (var i = 0; i < numberOfParticles; i++) {
         this.oldParticles.push(new Particle());
     }
 };
@@ -10,7 +10,7 @@ extend(RecyclingParticleSystem, ParticleSystem);
 RecyclingParticleSystem.prototype.createParticle = function() {
     if (!this.oldParticles.length) {
         var numberOfParticles = this.particles.length;
-        for (var i=0; i<numberOfParticles * 3; i++) {
+        for (var i = 0; i < numberOfParticles * 3; i++) {
             this.oldParticles.push(new Particle());
         }
     }

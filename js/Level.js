@@ -52,7 +52,7 @@ var Level = function(app) {
         fastStep: 0.01
     };
 
-    for (var i=0; i<this.height; i++) {
+    for (var i = 0; i < this.height; i++) {
         this.left[i] = this.calculateSide(this.sideIndex, this.leftDetails);
         this.right[i] = this.calculateSide(this.sideIndex, this.rightDetails);
         this.sideIndex += 1;
@@ -109,9 +109,11 @@ Level.prototype.addToBottom = function() {
 
     // Loop through pixels which have fallen off screen and calculate new
     // values for them
-    for (var i=0; i<this.velocity; i++) {
-        left[this.zeroIndex] = this.calculateSide(this.sideIndex, this.leftDetails);
-        right[this.zeroIndex] = this.calculateSide(this.sideIndex, this.rightDetails);
+    for (var i = 0; i < this.velocity; i++) {
+        left[this.zeroIndex] = this.calculateSide(this.sideIndex,
+                                                  this.leftDetails);
+        right[this.zeroIndex] = this.calculateSide(this.sideIndex,
+                                                   this.rightDetails);
         leftColors[this.zeroIndex] = null;
         rightColors[this.zeroIndex] = null;
         this.sideIndex += 1;
@@ -176,7 +178,7 @@ Level.prototype.updateModels = function() {
 
         if (leftColor != null) {
             leftColorVertexBuffer[leftCount * 6 + 0] = -width / 2;
-            leftColorVertexBuffer[leftCount * 6 + 1] =  i - height / 2;
+            leftColorVertexBuffer[leftCount * 6 + 1] = i - height / 2;
             leftColorVertexBuffer[leftCount * 6 + 2] = 0;
             leftColorVertexBuffer[leftCount * 6 + 3] = leftVertex - 1;
             leftColorVertexBuffer[leftCount * 6 + 4] = i - height / 2;
@@ -200,7 +202,7 @@ Level.prototype.updateModels = function() {
             rightColorVertexBuffer[rightCount * 6 + 3] = width / 2;
             rightColorVertexBuffer[rightCount * 6 + 4] = i - height / 2;
             rightColorVertexBuffer[rightCount * 6 + 5] = 0;
-                
+
             rightColorColorBuffer[rightCount * 8 + 0] = rightColor[0];
             rightColorColorBuffer[rightCount * 8 + 1] = rightColor[1];
             rightColorColorBuffer[rightCount * 8 + 2] = rightColor[2];
@@ -230,9 +232,11 @@ Level.prototype.updateModels = function() {
 Level.prototype.draw = function() {
     this.app.renderer.render(this.leftMesh);
     this.app.renderer.render(this.rightMesh);
-    this.app.renderer.render(this.leftColorMesh, 0, this.numberOfLeftColors * 2);
-    this.app.renderer.render(this.rightColorMesh, 0, this.numberOfRightColors * 2);
-}
+    this.app.renderer.render(this.leftColorMesh, 0,
+                             this.numberOfLeftColors * 2);
+    this.app.renderer.render(this.rightColorMesh, 0,
+                             this.numberOfRightColors * 2);
+};
 
 Level.prototype.calculateSide = function(yPos, details) {
     var x = 0;

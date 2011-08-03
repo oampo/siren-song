@@ -98,7 +98,7 @@ Siren.prototype.attach = function() {
     this.springIn = spring;
 
     this.connected = true;
-    this.removeAttraction()
+    this.removeAttraction();
     this.audio = new SirenAudio(this.app);
     chain.push(this);
 };
@@ -115,7 +115,7 @@ Siren.prototype.remove = function() {
         this.connected = false;
         var chain = this.app.chain;
         var chainIndex = chain.indexOf(this);
-        var before = chain[chainIndex - 1]; 
+        var before = chain[chainIndex - 1];
         var after = null;
 
         if (chainIndex != chainIndex.length - 1) {
@@ -130,7 +130,7 @@ Siren.prototype.remove = function() {
             this.app.particleSystem.removeForce(this.springOut);
             this.springOut = null;
             after.springIn = null;
-            
+
             // Create new spring
             var spring;
             if (before == this.app.goodGuy) {

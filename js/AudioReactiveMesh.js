@@ -1,9 +1,10 @@
 var AudioReactiveMesh = {};
 
-AudioReactiveMesh.initAudioReactiveMesh = function() {
+AudioReactiveMesh.initAudioReactiveMesh = function(lineWidth) {
     this.lastChannel = null;
     this.channelPosition = 0;
     this.framesPerChannel = 0;
+    this.lineWidth = lineWidth || 1;
 
     this.initVertices();
 };
@@ -13,17 +14,24 @@ AudioReactiveMesh.initVertices = function() {
 
     var dTheta = 2 * Math.PI / this.numberOfPoints;
 
-    for (var i = 0; i < this.numberOfPoints; i++) {
-        var theta = i * dTheta;
-        vertexBuffer[i * 3 + 0] = this.radius * Math.sin(theta);
-        vertexBuffer[i * 3 + 1] = this.radius * Math.cos(theta);
-        vertexBuffer[i * 3 + 2] = 0;
+    for (var i=0; i < this.lineWidth; i++) {
+        var radius = this.radius + i;
+        for (var j = 0; j < this.numberOfPoints; j++) {
+            var theta = j * dTheta;
+            var index = i * this.numberOfPoints * 3 + j * 3;
+            vertexBuffer[index + 0] = radius * Math.sin(theta);
+            vertexBuffer[index + 1] = radius * Math.cos(theta);
+            vertexBuffer[index + 2] = 0;
+        }
     }
     this.mesh.vertexBuffer.setValues();
 };
 
 AudioReactiveMesh.updateVertices = function(channel, gain) {
     gain = gain || 1;
+    if (channel.length < this.numberOfPoints) {
+        return;
+    }
     var vertexBuffer = this.mesh.vertexBuffer.array;
 
     if (channel == this.lastChannel) {
@@ -46,14 +54,18 @@ AudioReactiveMesh.updateVertices = function(channel, gain) {
     var samples = Math.floor(channel.length / this.framesPerChannel);
     var iIndex = this.channelPosition * samples;
     var dIndex = Math.floor(samples / this.numberOfPoints);
-    for (var i = 0; i < this.numberOfPoints; i++) {
-        var theta = i * dTheta;
-        var index = iIndex + i * dIndex;
-        var sample = channel[index] * gain;
-        vertexBuffer[i * 3 + 0] = this.radius * (Math.sin(theta) + sample);
-        vertexBuffer[i * 3 + 1] = this.radius * (Math.cos(theta) + sample);
-        vertexBuffer[i * 3 + 2] = 0;
-    };
+    for (var i = 0; i < this.lineWidth; i++) {
+        var radius = this.radius + i;
+        for (var j = 0; j < this.numberOfPoints; j++) {
+            var theta = j * dTheta;
+            var index = iIndex + j * dIndex;
+            var sample = channel[index] * gain;
+            var vertexIndex = i * this.numberOfPoints * 3 + j * 3;
+            vertexBuffer[vertexIndex + 0] = radius * (Math.sin(theta) + sample);
+            vertexBuffer[vertexIndex + 1] = radius * (Math.cos(theta) + sample);
+            vertexBuffer[vertexIndex + 2] = 0;
+        }
+    }
 
     this.mesh.vertexBuffer.setValues();
 };

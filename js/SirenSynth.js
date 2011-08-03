@@ -21,7 +21,7 @@ var SirenSynth = function(app) {
 
     // Siren envelope
     this.sirenGain = new Gain(audiolet);
-    this.sirenEnv = new ADSREnvelope(audiolet, 1, 2, 0.1, 1, 1,
+    this.sirenEnv = new ADSREnvelope(audiolet, 1, 3, 0.1, 1, 1,
         function() {
             this.audiolet.scheduler.addRelative(0,
                                             this.removeWithEvent.bind(this));
@@ -51,7 +51,7 @@ SirenSynth.prototype.reset = function() {
     this.sirenEnv.gate.setValue(1);
 };
 
-SirenSynth.DURATIONS = [1 / 3, 1 / 4];
+SirenSynth.DURATIONS = [1 / 4, 1 / 8];
 SirenSynth.FREQUENCIES = [[0, 1, 2],
                           [0, 1, 2, 3],
                           [0, 1, 2, 3, 4, 5],

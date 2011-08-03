@@ -1,3 +1,24 @@
+FONT_LOADED = false;
+WINDOW_LOADED = false;
+
+WebFont.load({
+    google: {
+        families: ['Orbitron'],
+    },
+    active: function() {
+        if (WINDOW_LOADED) {
+            window.app.start();
+        }
+        FONT_LOADED = true;
+    },
+    inactive: function() {
+        if (WINDOW_LOADED) {
+            window.app.start();
+        }
+        FONT_LOADED = true;
+    }
+});
+
 window.onload = function() {
     var SirenSong = function(element, options) {
         App.call(this, element, options);
@@ -26,16 +47,17 @@ window.onload = function() {
         this.keys = {};
 
         this.audiolet = new Audiolet();
+        this.audiolet.scheduler.setTempo(140);
         this.scale = new MajorScale();
         this.octaveDistributor = new OctaveDistributor();
         this.rootFrequency = 16.352;
 
         this.dcFilter = new DCFilter(this.audiolet);
-        var delayTime = this.audiolet.scheduler.beatLength;
+        var delayTime = this.audiolet.scheduler.beatLength * 4;
         delayTime /= this.audiolet.device.sampleRate;
         this.delay = new FeedbackDelay(this.audiolet, delayTime,
-                                       delayTime, 0.9, 0.2);
-        this.reverb = new Reverb(this.audiolet, 0.2, 1, 0.7);
+                                       delayTime, 0.8, 0.2);
+        this.reverb = new Reverb(this.audiolet, 0.5, 1, 0.7);
         this.crusher = new BitCrusher(this.audiolet, 8);
         this.dcFilter.connect(this.delay);
         this.delay.connect(this.reverb);
@@ -65,16 +87,24 @@ window.onload = function() {
             return new Float32Array(3);
         }, 30);
 
-        this.update();
-        this.draw();
-
-        this.shouldUpdate = false;
-        this.ui.startCountdown();
-
-        setInterval(this.preUpdate.bind(this), 1000/60);
+        if (FONT_LOADED) {
+            this.start();
+        }
+        WINDOW_LOADED = true;
     }
     extend(SirenSong, App);
     implement(SirenSong, KeyEvents);
+
+    SirenSong.prototype.start = function() {
+//        this.run();
+
+        this.update();
+        this.shouldUpdate = false;
+        this.ui.startCountdown();
+
+        setInterval(this.preUpdate.bind(this), 1000 / 60);
+        this.run();
+    };
 
     SirenSong.prototype.handleKeys = function() {
         if (this.keys.left || this.keys.a) {
@@ -123,7 +153,7 @@ window.onload = function() {
                                  this.modelview.matrix);
         this.level.draw();
         this.cloud.draw();
-        for (var i=0; i<this.sirens.length; i++) {
+        for (var i = 0; i < this.sirens.length; i++) {
             this.sirens[i].draw();
         }
         this.goodGuy.draw();
@@ -143,5 +173,4 @@ window.onload = function() {
                                    height: 600,
                                    antialias: false}
                               );
-    window.app.run();
 };

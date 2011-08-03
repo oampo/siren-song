@@ -4,7 +4,7 @@ var ObjectPool = function(construct, numberOfObjects) {
     this.objects = [];
 
     var args = Array.prototype.slice.call(arguments, 2);
-    for (var i=0; i<numberOfObjects; i++) {
+    for (var i = 0; i < numberOfObjects; i++) {
         this.objects.push(this.construct.apply(this, args));
     }
 };
@@ -12,7 +12,7 @@ var ObjectPool = function(construct, numberOfObjects) {
 ObjectPool.prototype.create = function() {
     if (!this.objects.length) {
         this.numberOfObjects *= 3;
-        for (var i=0; i<this.numberOfObjects; i++) {
+        for (var i = 0; i < this.numberOfObjects; i++) {
             this.objects.push(this.construct.apply(this, arguments));
         }
     }
@@ -22,7 +22,7 @@ ObjectPool.prototype.create = function() {
 };
 
 ObjectPool.prototype.recycle = function(object) {
-    if (typeof object.reset == "function") {
+    if (typeof object.reset == 'function') {
         object.reset();
     }
     this.objects.push(object);

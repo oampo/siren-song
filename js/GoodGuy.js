@@ -13,9 +13,9 @@ var GoodGuy = function(app) {
     this.transformation = new Transformation();
     this.angle = 0;
 
-    this.mesh = new Mesh(this.numberOfPoints, gl.LINE_STRIP, gl.STATIC_DRAW,
+    this.mesh = new Mesh(this.numberOfPoints * 3, gl.LINE_STRIP, gl.STATIC_DRAW,
                          gl.STATIC_DRAW);
-    this.initAudioReactiveMesh();
+    this.initAudioReactiveMesh(3);
     this.initColors();
 };
 implement(GoodGuy, AudioReactiveMesh);
@@ -24,13 +24,16 @@ GoodGuy.prototype.initColors = function() {
     var colorBuffer = this.mesh.colorBuffer.array;
 
     var dHue = 1 / this.numberOfPoints;
-    for (var i = 0; i < this.numberOfPoints; i++) {
-        var hue = i * dHue;
-        var color = Color.hsvaToRGBA(hue, 1, 1, 1);
-        colorBuffer[i * 4 + 0] = color[0];
-        colorBuffer[i * 4 + 1] = color[1];
-        colorBuffer[i * 4 + 2] = color[2];
-        colorBuffer[i * 4 + 3] = color[3];
+    for (var i = 0; i < this.lineWidth; i++) {
+        for (var j = 0; j < this.numberOfPoints; j++) {
+            var hue = j * dHue;
+            var color = Color.hsvaToRGBA(hue, 1, 1, 1);
+            var index = i * this.numberOfPoints * 4 + j * 4;
+            colorBuffer[index + 0] = color[0];
+            colorBuffer[index + 1] = color[1];
+            colorBuffer[index + 2] = color[2];
+            colorBuffer[index + 3] = color[3];
+        }
     }
     this.mesh.colorBuffer.setValues();
 };
@@ -67,7 +70,7 @@ GoodGuy.prototype.update = function() {
 };
 
 GoodGuy.prototype.draw = function() {
-    gl.lineWidth(3);
+//    gl.lineWidth(3);
     this.app.modelview.pushMatrix();
     this.transformation.apply(this.app.modelview.matrix);
     this.app.renderer.setUniform('uModelviewMatrix', this.app.modelview.matrix);

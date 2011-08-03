@@ -61,10 +61,11 @@ AttractionToGoodGuy.prototype.apply = function() {
 
 var AudioReactiveMesh = {};
 
-AudioReactiveMesh.initAudioReactiveMesh = function() {
+AudioReactiveMesh.initAudioReactiveMesh = function(lineWidth) {
     this.lastChannel = null;
     this.channelPosition = 0;
     this.framesPerChannel = 0;
+    this.lineWidth = lineWidth || 1;
 
     this.initVertices();
 };
@@ -74,17 +75,24 @@ AudioReactiveMesh.initVertices = function() {
 
     var dTheta = 2 * Math.PI / this.numberOfPoints;
 
-    for (var i = 0; i < this.numberOfPoints; i++) {
-        var theta = i * dTheta;
-        vertexBuffer[i * 3 + 0] = this.radius * Math.sin(theta);
-        vertexBuffer[i * 3 + 1] = this.radius * Math.cos(theta);
-        vertexBuffer[i * 3 + 2] = 0;
+    for (var i=0; i < this.lineWidth; i++) {
+        var radius = this.radius + i;
+        for (var j = 0; j < this.numberOfPoints; j++) {
+            var theta = j * dTheta;
+            var index = i * this.numberOfPoints * 3 + j * 3;
+            vertexBuffer[index + 0] = radius * Math.sin(theta);
+            vertexBuffer[index + 1] = radius * Math.cos(theta);
+            vertexBuffer[index + 2] = 0;
+        }
     }
     this.mesh.vertexBuffer.setValues();
 };
 
 AudioReactiveMesh.updateVertices = function(channel, gain) {
     gain = gain || 1;
+    if (channel.length < this.numberOfPoints) {
+        return;
+    }
     var vertexBuffer = this.mesh.vertexBuffer.array;
 
     if (channel == this.lastChannel) {
@@ -107,14 +115,18 @@ AudioReactiveMesh.updateVertices = function(channel, gain) {
     var samples = Math.floor(channel.length / this.framesPerChannel);
     var iIndex = this.channelPosition * samples;
     var dIndex = Math.floor(samples / this.numberOfPoints);
-    for (var i = 0; i < this.numberOfPoints; i++) {
-        var theta = i * dTheta;
-        var index = iIndex + i * dIndex;
-        var sample = channel[index] * gain;
-        vertexBuffer[i * 3 + 0] = this.radius * (Math.sin(theta) + sample);
-        vertexBuffer[i * 3 + 1] = this.radius * (Math.cos(theta) + sample);
-        vertexBuffer[i * 3 + 2] = 0;
-    };
+    for (var i = 0; i < this.lineWidth; i++) {
+        var radius = this.radius + i;
+        for (var j = 0; j < this.numberOfPoints; j++) {
+            var theta = j * dTheta;
+            var index = iIndex + j * dIndex;
+            var sample = channel[index] * gain;
+            var vertexIndex = i * this.numberOfPoints * 3 + j * 3;
+            vertexBuffer[vertexIndex + 0] = radius * (Math.sin(theta) + sample);
+            vertexBuffer[vertexIndex + 1] = radius * (Math.cos(theta) + sample);
+            vertexBuffer[vertexIndex + 2] = 0;
+        }
+    }
 
     this.mesh.vertexBuffer.setValues();
 };
@@ -277,9 +289,9 @@ var GoodGuy = function(app) {
     this.transformation = new Transformation();
     this.angle = 0;
 
-    this.mesh = new Mesh(this.numberOfPoints, gl.LINE_STRIP, gl.STATIC_DRAW,
+    this.mesh = new Mesh(this.numberOfPoints * 3, gl.LINE_STRIP, gl.STATIC_DRAW,
                          gl.STATIC_DRAW);
-    this.initAudioReactiveMesh();
+    this.initAudioReactiveMesh(3);
     this.initColors();
 };
 implement(GoodGuy, AudioReactiveMesh);
@@ -288,13 +300,16 @@ GoodGuy.prototype.initColors = function() {
     var colorBuffer = this.mesh.colorBuffer.array;
 
     var dHue = 1 / this.numberOfPoints;
-    for (var i = 0; i < this.numberOfPoints; i++) {
-        var hue = i * dHue;
-        var color = Color.hsvaToRGBA(hue, 1, 1, 1);
-        colorBuffer[i * 4 + 0] = color[0];
-        colorBuffer[i * 4 + 1] = color[1];
-        colorBuffer[i * 4 + 2] = color[2];
-        colorBuffer[i * 4 + 3] = color[3];
+    for (var i = 0; i < this.lineWidth; i++) {
+        for (var j = 0; j < this.numberOfPoints; j++) {
+            var hue = j * dHue;
+            var color = Color.hsvaToRGBA(hue, 1, 1, 1);
+            var index = i * this.numberOfPoints * 4 + j * 4;
+            colorBuffer[index + 0] = color[0];
+            colorBuffer[index + 1] = color[1];
+            colorBuffer[index + 2] = color[2];
+            colorBuffer[index + 3] = color[3];
+        }
     }
     this.mesh.colorBuffer.setValues();
 };
@@ -331,7 +346,7 @@ GoodGuy.prototype.update = function() {
 };
 
 GoodGuy.prototype.draw = function() {
-    gl.lineWidth(3);
+//    gl.lineWidth(3);
     this.app.modelview.pushMatrix();
     this.transformation.apply(this.app.modelview.matrix);
     this.app.renderer.setUniform('uModelviewMatrix', this.app.modelview.matrix);
@@ -442,7 +457,7 @@ var Level = function(app) {
         fastStep: 0.01
     };
 
-    for (var i=0; i<this.height; i++) {
+    for (var i = 0; i < this.height; i++) {
         this.left[i] = this.calculateSide(this.sideIndex, this.leftDetails);
         this.right[i] = this.calculateSide(this.sideIndex, this.rightDetails);
         this.sideIndex += 1;
@@ -499,9 +514,11 @@ Level.prototype.addToBottom = function() {
 
     // Loop through pixels which have fallen off screen and calculate new
     // values for them
-    for (var i=0; i<this.velocity; i++) {
-        left[this.zeroIndex] = this.calculateSide(this.sideIndex, this.leftDetails);
-        right[this.zeroIndex] = this.calculateSide(this.sideIndex, this.rightDetails);
+    for (var i = 0; i < this.velocity; i++) {
+        left[this.zeroIndex] = this.calculateSide(this.sideIndex,
+                                                  this.leftDetails);
+        right[this.zeroIndex] = this.calculateSide(this.sideIndex,
+                                                   this.rightDetails);
         leftColors[this.zeroIndex] = null;
         rightColors[this.zeroIndex] = null;
         this.sideIndex += 1;
@@ -566,7 +583,7 @@ Level.prototype.updateModels = function() {
 
         if (leftColor != null) {
             leftColorVertexBuffer[leftCount * 6 + 0] = -width / 2;
-            leftColorVertexBuffer[leftCount * 6 + 1] =  i - height / 2;
+            leftColorVertexBuffer[leftCount * 6 + 1] = i - height / 2;
             leftColorVertexBuffer[leftCount * 6 + 2] = 0;
             leftColorVertexBuffer[leftCount * 6 + 3] = leftVertex - 1;
             leftColorVertexBuffer[leftCount * 6 + 4] = i - height / 2;
@@ -590,7 +607,7 @@ Level.prototype.updateModels = function() {
             rightColorVertexBuffer[rightCount * 6 + 3] = width / 2;
             rightColorVertexBuffer[rightCount * 6 + 4] = i - height / 2;
             rightColorVertexBuffer[rightCount * 6 + 5] = 0;
-                
+
             rightColorColorBuffer[rightCount * 8 + 0] = rightColor[0];
             rightColorColorBuffer[rightCount * 8 + 1] = rightColor[1];
             rightColorColorBuffer[rightCount * 8 + 2] = rightColor[2];
@@ -620,9 +637,11 @@ Level.prototype.updateModels = function() {
 Level.prototype.draw = function() {
     this.app.renderer.render(this.leftMesh);
     this.app.renderer.render(this.rightMesh);
-    this.app.renderer.render(this.leftColorMesh, 0, this.numberOfLeftColors * 2);
-    this.app.renderer.render(this.rightColorMesh, 0, this.numberOfRightColors * 2);
-}
+    this.app.renderer.render(this.leftColorMesh, 0,
+                             this.numberOfLeftColors * 2);
+    this.app.renderer.render(this.rightColorMesh, 0,
+                             this.numberOfRightColors * 2);
+};
 
 Level.prototype.calculateSide = function(yPos, details) {
     var x = 0;
@@ -651,6 +670,27 @@ Level.prototype.yPosToIndex = function(yPos) {
     var index = Math.floor(this.zeroIndex + distanceFromTop) % this.height;
     return index;
 };
+FONT_LOADED = false;
+WINDOW_LOADED = false;
+
+WebFont.load({
+    google: {
+        families: ['Orbitron'],
+    },
+    active: function() {
+        if (WINDOW_LOADED) {
+            window.app.start();
+        }
+        FONT_LOADED = true;
+    },
+    inactive: function() {
+        if (WINDOW_LOADED) {
+            window.app.start();
+        }
+        FONT_LOADED = true;
+    }
+});
+
 window.onload = function() {
     var SirenSong = function(element, options) {
         App.call(this, element, options);
@@ -679,16 +719,17 @@ window.onload = function() {
         this.keys = {};
 
         this.audiolet = new Audiolet();
+        this.audiolet.scheduler.setTempo(140);
         this.scale = new MajorScale();
         this.octaveDistributor = new OctaveDistributor();
         this.rootFrequency = 16.352;
 
         this.dcFilter = new DCFilter(this.audiolet);
-        var delayTime = this.audiolet.scheduler.beatLength;
+        var delayTime = this.audiolet.scheduler.beatLength * 4;
         delayTime /= this.audiolet.device.sampleRate;
         this.delay = new FeedbackDelay(this.audiolet, delayTime,
-                                       delayTime, 0.9, 0.2);
-        this.reverb = new Reverb(this.audiolet, 0.2, 1, 0.7);
+                                       delayTime, 0.8, 0.2);
+        this.reverb = new Reverb(this.audiolet, 0.5, 1, 0.7);
         this.crusher = new BitCrusher(this.audiolet, 8);
         this.dcFilter.connect(this.delay);
         this.delay.connect(this.reverb);
@@ -718,16 +759,24 @@ window.onload = function() {
             return new Float32Array(3);
         }, 30);
 
-        this.update();
-        this.draw();
-
-        this.shouldUpdate = false;
-        this.ui.startCountdown();
-
-        setInterval(this.preUpdate.bind(this), 1000/60);
+        if (FONT_LOADED) {
+            this.start();
+        }
+        WINDOW_LOADED = true;
     }
     extend(SirenSong, App);
     implement(SirenSong, KeyEvents);
+
+    SirenSong.prototype.start = function() {
+//        this.run();
+
+        this.update();
+        this.shouldUpdate = false;
+        this.ui.startCountdown();
+
+        setInterval(this.preUpdate.bind(this), 1000 / 60);
+        this.run();
+    };
 
     SirenSong.prototype.handleKeys = function() {
         if (this.keys.left || this.keys.a) {
@@ -776,7 +825,7 @@ window.onload = function() {
                                  this.modelview.matrix);
         this.level.draw();
         this.cloud.draw();
-        for (var i=0; i<this.sirens.length; i++) {
+        for (var i = 0; i < this.sirens.length; i++) {
             this.sirens[i].draw();
         }
         this.goodGuy.draw();
@@ -796,19 +845,18 @@ window.onload = function() {
                                    height: 600,
                                    antialias: false}
                               );
-    window.app.run();
 };
 Math.randomBetween = function(a, b) {
     return a + Math.random() * (b - a);
 };
-        
+
 var ObjectPool = function(construct, numberOfObjects) {
     this.construct = construct;
     this.numberOfObjects = numberOfObjects;
     this.objects = [];
 
     var args = Array.prototype.slice.call(arguments, 2);
-    for (var i=0; i<numberOfObjects; i++) {
+    for (var i = 0; i < numberOfObjects; i++) {
         this.objects.push(this.construct.apply(this, args));
     }
 };
@@ -816,7 +864,7 @@ var ObjectPool = function(construct, numberOfObjects) {
 ObjectPool.prototype.create = function() {
     if (!this.objects.length) {
         this.numberOfObjects *= 3;
-        for (var i=0; i<this.numberOfObjects; i++) {
+        for (var i = 0; i < this.numberOfObjects; i++) {
             this.objects.push(this.construct.apply(this, arguments));
         }
     }
@@ -826,7 +874,7 @@ ObjectPool.prototype.create = function() {
 };
 
 ObjectPool.prototype.recycle = function(object) {
-    if (typeof object.reset == "function") {
+    if (typeof object.reset == 'function') {
         object.reset();
     }
     this.objects.push(object);
@@ -1055,7 +1103,7 @@ SimplexNoise.prototype.noise = function(xin, yin) {
 var RecyclingParticleSystem = function(numberOfParticles) {
     ParticleSystem.call(this);
     this.oldParticles = [];
-    for (var i=0; i<numberOfParticles; i++) {
+    for (var i = 0; i < numberOfParticles; i++) {
         this.oldParticles.push(new Particle());
     }
 };
@@ -1064,7 +1112,7 @@ extend(RecyclingParticleSystem, ParticleSystem);
 RecyclingParticleSystem.prototype.createParticle = function() {
     if (!this.oldParticles.length) {
         var numberOfParticles = this.particles.length;
-        for (var i=0; i<numberOfParticles * 3; i++) {
+        for (var i = 0; i < numberOfParticles * 3; i++) {
             this.oldParticles.push(new Particle());
         }
     }
@@ -1128,7 +1176,7 @@ var SirenAudio = function(app) {
 
     this.synth = this.app.synthPool.create(this.app);
 //    this.synth = new SirenSynth(this.app);
-    this.synth.connect(this.app.dcFilter); 
+    this.synth.connect(this.app.dcFilter);
 
     var frequencies = SirenSynth.FREQUENCIES;
     var index = Math.floor(Math.random() * frequencies.length);
@@ -1273,7 +1321,7 @@ Siren.prototype.attach = function() {
     this.springIn = spring;
 
     this.connected = true;
-    this.removeAttraction()
+    this.removeAttraction();
     this.audio = new SirenAudio(this.app);
     chain.push(this);
 };
@@ -1290,7 +1338,7 @@ Siren.prototype.remove = function() {
         this.connected = false;
         var chain = this.app.chain;
         var chainIndex = chain.indexOf(this);
-        var before = chain[chainIndex - 1]; 
+        var before = chain[chainIndex - 1];
         var after = null;
 
         if (chainIndex != chainIndex.length - 1) {
@@ -1305,7 +1353,7 @@ Siren.prototype.remove = function() {
             this.app.particleSystem.removeForce(this.springOut);
             this.springOut = null;
             after.springIn = null;
-            
+
             // Create new spring
             var spring;
             if (before == this.app.goodGuy) {
@@ -1355,7 +1403,7 @@ var SirenSynth = function(app) {
 
     // Siren envelope
     this.sirenGain = new Gain(audiolet);
-    this.sirenEnv = new ADSREnvelope(audiolet, 1, 2, 0.1, 1, 1,
+    this.sirenEnv = new ADSREnvelope(audiolet, 1, 3, 0.1, 1, 1,
         function() {
             this.audiolet.scheduler.addRelative(0,
                                             this.removeWithEvent.bind(this));
@@ -1385,7 +1433,7 @@ SirenSynth.prototype.reset = function() {
     this.sirenEnv.gate.setValue(1);
 };
 
-SirenSynth.DURATIONS = [1 / 3, 1 / 4];
+SirenSynth.DURATIONS = [1 / 4, 1 / 8];
 SirenSynth.FREQUENCIES = [[0, 1, 2],
                           [0, 1, 2, 3],
                           [0, 1, 2, 3, 4, 5],
@@ -1513,8 +1561,8 @@ SpringToGoodGuy.prototype.apply = function() {
 var UI = function(app) {
     this.app = app;
 
-    this.canvas =  document.getElementById("scores");
-    this.context = this.canvas.getContext("2d");
+    this.canvas = document.getElementById('scores');
+    this.context = this.canvas.getContext('2d');
 
     this.haveShownHighScore = false;
 
@@ -1533,6 +1581,8 @@ var UI = function(app) {
 
     this.lastScore = -1;
     this.lastHighScore = -1;
+
+    this.createPopups();
 };
 
 UI.prototype.draw = function() {
@@ -1548,39 +1598,39 @@ UI.prototype.draw = function() {
         if (this.context.font != '36px \'Orbitron\', sans-serif') {
             this.context.font = '36px \'Orbitron\', sans-serif';
         }
-        this.context.textBaseline = "top";
+        this.context.textBaseline = 'middle';
     }
 
     if (needDrawScore) {
-        this.context.clearRect(0, 0, this.canvas.width / 3, 36);
+        this.context.clearRect(0, 0, this.canvas.width / 3, 40);
         this.context.textAlign = 'left';
         this.context.fillStyle = '#00FF00';
-        this.context.fillText(score.toString(), 0, 0);
+        this.context.fillText(score.toString(), 0, 18);
     }
 
     if (needDrawHighScore) {
         this.context.clearRect(2 * this.canvas.width / 3, 0,
-                               this.canvas.width / 3, 36);
+                               this.canvas.width / 3, 40);
         this.context.textAlign = 'right';
         this.context.fillStyle = '#FF0000';
         this.context.fillText(highScore.toString(),
-                              this.canvas.width, 0);
+                              this.canvas.width, 18);
     }
 
 
     if (this.needDrawFlash || this.countdown) {
-        this.context.textAlign ='center';
+        this.context.textAlign = 'center';
         this.context.fillStyle = '#FFFFFF';
     }
 
     if (this.needDrawFlash) {
-        this.context.fillText("High Score", this.canvas.width / 2, 0);
+        this.context.fillText('High Score', this.canvas.width / 2, 18);
         this.needDrawFlash = false;
     }
 
     if (this.needClearFlash) {
         this.context.clearRect(this.canvas.width / 3, 0,
-                               this.canvas.width / 3, 36);
+                               this.canvas.width / 3, 40);
         this.needClearFlash = false;
     }
 
@@ -1593,7 +1643,7 @@ UI.prototype.draw = function() {
 
 
     if (this.needDrawCountdown) {
-        this.context.textBaseline = "middle";
+        this.context.textBaseline = 'middle';
         if (this.context.font != '72px \'Orbitron\', sans-serif') {
             this.context.font = '72px \'Orbitron\', sans-serif';
         }
@@ -1610,7 +1660,7 @@ UI.prototype.draw = function() {
 UI.prototype.clearCountdown = function() {
     this.context.clearRect(this.canvas.width / 2 - 36,
                            this.canvas.height / 2, 72, 72);
-}
+};
 
 
 UI.prototype.updateScore = function() {
@@ -1670,4 +1720,24 @@ UI.prototype.doCountdown = function() {
 
         this.app.shouldUpdate = true;
     }
+};
+
+UI.prototype.createPopups = function() {
+    var aboutLink = document.getElementById('about-link');
+    var about = document.getElementById('about');
+    aboutLink.onmouseover = function() {
+       about.style.display = 'block';
+    };
+    aboutLink.onmouseout = function() {
+        about.style.display = 'none';
+    };
+
+    var tipsLink = document.getElementById('tips-link');
+    var tips = document.getElementById('tips');
+    tipsLink.onmouseover = function() {
+        tips.style.display = 'block';
+    };
+    tipsLink.onmouseout = function() {
+        tips.style.display = 'none';
+    };
 };

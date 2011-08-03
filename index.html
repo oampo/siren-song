@@ -6,13 +6,12 @@
         <meta name="author" content="Joe Turner" />
         <title>Siren Song</title>
 
-        <link href='http://fonts.googleapis.com/css?family=Orbitron&v2'
-              rel='stylesheet' type='text/css'>
         <link rel="stylesheet" href="css/960/reset.css" />
         <link rel="stylesheet" href="css/960/text.css" />
         <link rel="stylesheet" href="css/960/960.css" />
         <link rel="stylesheet" href="css/main.css" />
         
+        <script src="http://ajax.googleapis.com/ajax/libs/webfont/1/webfont.js"></script>
         <script src="../webglet.git/src/glmatrix/glMatrix-0.9.4.js"></script>
         <script src="../webglet.git/src/webglet/WebGLet.js"></script>
         <script src="../webglet.git/src/mixins/KeyEvents.js"></script>
@@ -57,8 +56,55 @@
             <div id="push"></div>
         </div>
         <div id="footer">
+            <div id="about" style="display: none">
+                <div class="center"><strong>ABOUT SIREN SONG</strong></div>
+                <p>
+                    Siren Song is an &#8734; audio-visual game in which players guide Sirens through an endless algorithmically generated level.  As the Sirens navigate the level they produce glitchy clouds of colour and hypnotic 8-bit drones.
+                </p>
+                <p>
+                    Siren Song uses WebGLet and the HTML5 canvas to create the graphics, and Audiolet to generate and schedule the sounds.
+                </p>
+            </div>
+
+            <div id="tips" style="display: none">
+                <div class="center"><strong>TIPS</strong></div>
+                <ul>
+                    <li>
+                        No visuals?  You need a WebGL enabled browser.  See http://get.webgl.org
+                    </li>
+                    <li>
+                        No sound?  Use Firefox &gt;= 4.
+                    </li>
+                    <li>
+                        Prefer Chrome?  Use a Dev build with the Web Audio API enabled in about:flags.
+                    </li>
+                    <li>
+                        Hit F11.  Siren Song looks better in fullscreen.
+                    </li>
+                    <hr>
+                    <li>
+                        Guide the sirens to hear their song.
+                    </li>
+                    <li>
+                        The controls? Left/Right or A/D.
+                    </li>
+                    <li>
+                        Too easy?  Keep it up!  It gets harder.
+                    </li>
+                    <li>
+                        Too hard?  Let everything drift for a while.
+                    </li>
+                    <li>
+                        Want a challenge?  100,000 points is tough.
+                    </li>
+                    <li>
+                        Have fun!
+                    </li>
+                </ul>
+            </div>
+ 
             <div>
-                SIREN SONG IS AN &#8734; GAME BY <a href="http://www.oampo.co.uk">O<span class="amp">&amp;</span>O</a>
+                SIREN SONG IS AN &#8734; GAME BY <a href="http://www.oampo.co.uk">O<span class="amp">&amp;</span>O</a> | <a href="#" id="about-link">ABOUT</a> | <a href="#" id="tips-link">TIPS</a>
             </div>
         </div>
     </body>

@@ -1,8 +1,8 @@
 var UI = function(app) {
     this.app = app;
 
-    this.canvas =  document.getElementById("scores");
-    this.context = this.canvas.getContext("2d");
+    this.canvas = document.getElementById('scores');
+    this.context = this.canvas.getContext('2d');
 
     this.haveShownHighScore = false;
 
@@ -21,6 +21,8 @@ var UI = function(app) {
 
     this.lastScore = -1;
     this.lastHighScore = -1;
+
+    this.createPopups();
 };
 
 UI.prototype.draw = function() {
@@ -36,39 +38,39 @@ UI.prototype.draw = function() {
         if (this.context.font != '36px \'Orbitron\', sans-serif') {
             this.context.font = '36px \'Orbitron\', sans-serif';
         }
-        this.context.textBaseline = "top";
+        this.context.textBaseline = 'middle';
     }
 
     if (needDrawScore) {
-        this.context.clearRect(0, 0, this.canvas.width / 3, 36);
+        this.context.clearRect(0, 0, this.canvas.width / 3, 40);
         this.context.textAlign = 'left';
         this.context.fillStyle = '#00FF00';
-        this.context.fillText(score.toString(), 0, 0);
+        this.context.fillText(score.toString(), 0, 18);
     }
 
     if (needDrawHighScore) {
         this.context.clearRect(2 * this.canvas.width / 3, 0,
-                               this.canvas.width / 3, 36);
+                               this.canvas.width / 3, 40);
         this.context.textAlign = 'right';
         this.context.fillStyle = '#FF0000';
         this.context.fillText(highScore.toString(),
-                              this.canvas.width, 0);
+                              this.canvas.width, 18);
     }
 
 
     if (this.needDrawFlash || this.countdown) {
-        this.context.textAlign ='center';
+        this.context.textAlign = 'center';
         this.context.fillStyle = '#FFFFFF';
     }
 
     if (this.needDrawFlash) {
-        this.context.fillText("High Score", this.canvas.width / 2, 0);
+        this.context.fillText('High Score', this.canvas.width / 2, 18);
         this.needDrawFlash = false;
     }
 
     if (this.needClearFlash) {
         this.context.clearRect(this.canvas.width / 3, 0,
-                               this.canvas.width / 3, 36);
+                               this.canvas.width / 3, 40);
         this.needClearFlash = false;
     }
 
@@ -81,7 +83,7 @@ UI.prototype.draw = function() {
 
 
     if (this.needDrawCountdown) {
-        this.context.textBaseline = "middle";
+        this.context.textBaseline = 'middle';
         if (this.context.font != '72px \'Orbitron\', sans-serif') {
             this.context.font = '72px \'Orbitron\', sans-serif';
         }
@@ -98,7 +100,7 @@ UI.prototype.draw = function() {
 UI.prototype.clearCountdown = function() {
     this.context.clearRect(this.canvas.width / 2 - 36,
                            this.canvas.height / 2, 72, 72);
-}
+};
 
 
 UI.prototype.updateScore = function() {
@@ -158,4 +160,24 @@ UI.prototype.doCountdown = function() {
 
         this.app.shouldUpdate = true;
     }
+};
+
+UI.prototype.createPopups = function() {
+    var aboutLink = document.getElementById('about-link');
+    var about = document.getElementById('about');
+    aboutLink.onmouseover = function() {
+       about.style.display = 'block';
+    };
+    aboutLink.onmouseout = function() {
+        about.style.display = 'none';
+    };
+
+    var tipsLink = document.getElementById('tips-link');
+    var tips = document.getElementById('tips');
+    tipsLink.onmouseover = function() {
+        tips.style.display = 'block';
+    };
+    tipsLink.onmouseout = function() {
+        tips.style.display = 'none';
+    };
 };
