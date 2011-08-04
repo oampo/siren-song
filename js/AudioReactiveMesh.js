@@ -14,7 +14,7 @@ AudioReactiveMesh.initVertices = function() {
 
     var dTheta = 2 * Math.PI / this.numberOfPoints;
 
-    for (var i=0; i < this.lineWidth; i++) {
+    for (var i = 0; i < this.lineWidth; i++) {
         var radius = this.radius + i;
         for (var j = 0; j < this.numberOfPoints; j++) {
             var theta = j * dTheta;

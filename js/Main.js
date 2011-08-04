@@ -3,7 +3,7 @@ WINDOW_LOADED = false;
 
 WebFont.load({
     google: {
-        families: ['Orbitron'],
+        families: ['Orbitron']
     },
     active: function() {
         if (WINDOW_LOADED) {
