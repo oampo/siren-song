@@ -694,6 +694,12 @@ WebFont.load({
 window.onload = function() {
     var SirenSong = function(element, options) {
         App.call(this, element, options);
+
+        if (!gl) {
+            // Hide UI
+            document.getElementById('ui').style.display = 'none';
+            return;
+        }
         this.initKeyEvents();
 
         this.width = this.canvas.width;
