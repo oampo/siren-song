@@ -21,11 +21,14 @@ var UI = function(app) {
 
     this.lastScore = -1;
     this.lastHighScore = -1;
-
-    this.createPopups();
 };
 
 UI.prototype.draw = function() {
+    if (this.canvas.clientWidth != this.canvas.width ||
+        this.canvas.clientHeight != this.canvas.height) {
+        this.canvas.width = this.canvas.clientWidth;
+        this.canvas.height = this.canvas.clientHeight;
+    }
     var score = this.app.score.score;
     var highScore = this.app.score.highScore;
 
@@ -162,22 +165,4 @@ UI.prototype.doCountdown = function() {
     }
 };
 
-UI.prototype.createPopups = function() {
-    var aboutLink = document.getElementById('about-link');
-    var about = document.getElementById('about');
-    aboutLink.onmouseover = function() {
-       about.style.display = 'block';
-    };
-    aboutLink.onmouseout = function() {
-        about.style.display = 'none';
-    };
-
-    var tipsLink = document.getElementById('tips-link');
-    var tips = document.getElementById('tips');
-    tipsLink.onmouseover = function() {
-        tips.style.display = 'block';
-    };
-    tipsLink.onmouseout = function() {
-        tips.style.display = 'none';
-    };
-};
+module.exports = UI;

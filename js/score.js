@@ -14,3 +14,5 @@ Score.prototype.increase = function() {
 Score.prototype.decrease = function() {
     this.score = Math.floor(this.score * 0.995);
 };
+
+module.exports = Score;

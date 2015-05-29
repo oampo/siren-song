@@ -34,3 +34,5 @@ Color.PARTICLE_TABLE = [];
 for (var i = 0; i < numberOfColors; i++) {
     Color.PARTICLE_TABLE.push(Color.hsvaToRGBA(i / numberOfColors, 1, 1, 1));
 }
+
+module.exports = Color;

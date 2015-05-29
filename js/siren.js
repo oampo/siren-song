@@ -1,33 +1,48 @@
+var webglet = require('webglet');
+var glMatrix = require('gl-matrix');
+var vec3 = glMatrix.vec3;
+
+require('./math');
+var AudioReactiveMesh = require('./audio-reactive-mesh');
+var AttractionToGoodGuy = require('./attraction-to-good-guy');
+var SpringToGoodGuy = require('./spring-to-good-guy');
+var SirenAudio = require('./siren-audio');
+var Spring = require('./spring');
+var settings = require('./settings');
+
 var Siren = function(app) {
     this.app = app;
 
     this.numberOfPoints = 100;
-    this.radius = 8;
+    this.radius = 0.01;
     this.connected = false;
     this.springIn = null;
     this.springOut = null;
 
-    var yPos = app.height / 2 - 1;
+    var yPos = app.height() / 2 - 0.0001;
     var sides = this.app.level.getSides(yPos);
     var xPos = Math.randomBetween(sides[0] + this.radius * 2,
                                   sides[1] - this.radius * 2);
     this.particle = this.app.particleSystem.createParticle();
     this.particle.position[0] = xPos;
     this.particle.position[1] = yPos;
-    this.particle.velocity[1] = -3;
+    this.particle.velocity[1] = -settings.velocity;
 
-    this.transformation = new Transformation();
+    this.transformation = new webglet.Transformation();
 
     this.createAttraction();
 
-    this.mesh = new Mesh(this.numberOfPoints, gl.LINE_STRIP, gl.STATIC_DRAW,
-                         gl.STATIC_DRAW);
+    this.mesh = new webglet.Mesh(this.numberOfPoints, gl.LINE_STRIP,
+                                 gl.STATIC_DRAW, gl.STATIC_DRAW);
     this.initAudioReactiveMesh();
     this.initColors();
 
     this.audio = null;
 };
-implement(Siren, AudioReactiveMesh);
+
+for (var method in AudioReactiveMesh) {
+    Siren.prototype[method] = AudioReactiveMesh[method];
+}
 
 Siren.prototype.initColors = function() {
     var colorBuffer = this.mesh.colorBuffer.array;
@@ -42,9 +57,10 @@ Siren.prototype.initColors = function() {
 };
 
 Siren.prototype.createAttraction = function() {
-    this.attraction = new AttractionToGoodGuy(this.app,
-                                              this.app.goodGuy.particle,
-                                              this.particle, 800, 20, 40);
+    this.attraction = new AttractionToGoodGuy(
+        this.app, this.app.goodGuy.particle, this.particle,
+        settings.attractionConstant, settings.minAttractionDistance,
+        settings.maxAttractionDistance);
     this.app.particleSystem.forces.push(this.attraction);
 };
 
@@ -55,19 +71,24 @@ Siren.prototype.removeAttraction = function() {
 
 Siren.prototype.update = function() {
     var position = this.particle.position;
+    if (position[1] < -this.app.height() / 2 ||
+        position[1] > this.app.height() / 2) {
+        this.remove();
+        return;
+    }
+
     var sides = this.app.level.getSides(position[1]);
-    if (position[1] < -this.app.height / 2 ||
-        position[0] < sides[0] ||
+    if (position[0] < sides[0] ||
         position[0] > sides[1]) {
         this.remove();
+        return;
     }
-    else {
-        vec3.set(this.particle.position, this.transformation.position);
-        if (this.connected) {
-            var channel = this.audio.getOutputChannel();
-            this.updateVertices(channel, 3);
-            this.createParticles();
-        }
+
+    vec3.copy(this.transformation.position, this.particle.position);
+    if (this.connected) {
+        var channel = this.audio.getOutputChannel();
+        this.updateVertices(channel, 3);
+        this.createParticles();
     }
 };
 
@@ -87,11 +108,15 @@ Siren.prototype.attach = function() {
     if (to == this.app.goodGuy) {
         // Connect to goodGuy
         spring = new SpringToGoodGuy(this.app, to.particle, this.particle,
-                                     0.05, 0.5, 15);
+                                     settings.springConstant,
+                                     settings.springDampingConstant,
+                                     settings.springRestLength);
     }
     else {
         spring = new Spring(this.app, to.particle, this.particle,
-                            0.05, 0.5, 15);
+                            settings.springConstant,
+                            settings.springDampingConstant,
+                            settings.springRestLength);
     }
     this.app.particleSystem.forces.push(spring);
     to.springOut = spring;
@@ -135,11 +160,16 @@ Siren.prototype.remove = function() {
             var spring;
             if (before == this.app.goodGuy) {
                 spring = new SpringToGoodGuy(this.app, before.particle,
-                                             after.particle, 0.05, 0.5, 15);
+                                             after.particle,
+                                             settings.springConstant,
+                                             settings.springDampingConstant,
+                                             settings.springRestLength);
             }
             else {
                 spring = new Spring(this.app, before.particle, after.particle,
-                                    0.05, 0.5, 15);
+                                    settings.springConstant,
+                                    settings.springDampingConstant,
+                                    settings.springRestLength);
             }
             this.app.particleSystem.forces.push(spring);
             before.springOut = spring;
@@ -157,3 +187,4 @@ Siren.prototype.remove = function() {
 Siren.prototype.createParticles = function() {
 };
 
+module.exports = Siren;

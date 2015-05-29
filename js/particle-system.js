@@ -1,3 +1,7 @@
+var vec3 = require('gl-matrix').vec3;
+
+var Integrator = require('./integrator.js');
+
 var ParticleSystem = function() {
     this.integrator = new Integrator(this);
     this.particles = [];
@@ -11,7 +15,7 @@ ParticleSystem.prototype.createParticle = function() {
 };
 
 ParticleSystem.prototype.tick = function(time) {
-    this.integrator.step(time || 1);
+    this.integrator.step(time);
 };
 
 ParticleSystem.prototype.clear = function() {
@@ -34,7 +38,7 @@ ParticleSystem.prototype.clearForces = function() {
     var particles = this.particles;
     var numberOfParticles = particles.length;
     for (var i = 0; i < numberOfParticles; i++) {
-        vec3.set([0, 0, 0], particles[i].force);
+        vec3.set(particles[i].force, 0, 0, 0);
     }
 };
 
@@ -66,3 +70,4 @@ ParticleSystem.prototype.removeForce = function(force) {
     return null;
 };
 
+module.exports = ParticleSystem;

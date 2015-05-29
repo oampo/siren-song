@@ -28,3 +28,4 @@ ObjectPool.prototype.recycle = function(object) {
     this.objects.push(object);
 };
 
+module.exports = ObjectPool;

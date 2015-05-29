@@ -9,3 +9,5 @@ OctaveDistributor.prototype.getOctave = function() {
     var index = Math.floor(Math.random() * this.octaves.length);
     return this.octaves.splice(index, 1)[0];
 };
+
+module.exports = OctaveDistributor;

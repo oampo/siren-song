@@ -1,3 +1,6 @@
+var ParticleSystem = require('./particle-system');
+var Particle = require('./particle');
+
 var RecyclingParticleSystem = function(numberOfParticles) {
     ParticleSystem.call(this);
     this.oldParticles = [];
@@ -5,7 +8,8 @@ var RecyclingParticleSystem = function(numberOfParticles) {
         this.oldParticles.push(new Particle());
     }
 };
-extend(RecyclingParticleSystem, ParticleSystem);
+RecyclingParticleSystem.prototype = Object.create(ParticleSystem.prototype);
+RecyclingParticleSystem.prototype.constructor = RecyclingParticleSystem;
 
 RecyclingParticleSystem.prototype.createParticle = function() {
     if (!this.oldParticles.length) {
@@ -52,4 +56,6 @@ RecyclingParticleSystem.prototype.removeForce = function(force) {
     }
     return null;
 };
+
+module.exports = RecyclingParticleSystem;
 

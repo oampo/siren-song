@@ -1,20 +1,26 @@
+var webglet = require('webglet');
+
+var RecyclingParticleSystem = require('./recycling-particle-system');
+var CloudIntegrator = require('./cloud-integrator');
+var Color = require('./color');
+
 var Cloud = function(app) {
     this.app = app;
 
     this.particleSystem = new RecyclingParticleSystem(300);
     this.particleSystem.integrator = new CloudIntegrator(this.particleSystem);
 
-    this.mesh = new Mesh(100, gl.POINTS,
-                          gl.STREAM_DRAW, gl.STREAM_DRAW);
+    this.mesh = new webglet.Mesh(100, gl.POINTS,
+                                 gl.STREAM_DRAW, gl.STREAM_DRAW);
 };
 
-Cloud.prototype.update = function() {
-    this.particleSystem.tick();
+Cloud.prototype.update = function(dt) {
+    this.particleSystem.tick(dt);
 
-    var halfHeight = this.app.height / 2;
+    var halfHeight = this.app.height() / 2;
     var level = this.app.level;
-    var leftColors = level.leftColors;
-    var rightColors = level.rightColors;
+//    var leftColors = level.leftColors;
+//    var rightColors = level.rightColors;
     var score = this.app.score;
 
     var particleSystem = this.particleSystem;
@@ -22,7 +28,7 @@ Cloud.prototype.update = function() {
     var numberOfParticles = particles.length;
 
     if (numberOfParticles > this.mesh.numVertices) {
-        this.mesh = new Mesh(numberOfParticles * 3, gl.POINTS,
+        this.mesh = new webglet.Mesh(numberOfParticles * 3, gl.POINTS,
                              gl.STREAM_DRAW, gl.STREAM_DRAW);
     }
 
@@ -42,11 +48,12 @@ Cloud.prototype.update = function() {
         var left = sides[0];
         var right = sides[1];
 
-        var age = particle.age;
+        // Change age approximately 1 step per frame
+        var age = Math.floor(particle.age * 60);
         var hue = age % Color.PARTICLE_TABLE.length;
         var color = Color.PARTICLE_TABLE[hue];
 
-        if (age > 1000 ||
+        if (age > 200 ||
             yPos < -halfHeight ||
             yPos > halfHeight ||
             xPos < left ||
@@ -54,6 +61,7 @@ Cloud.prototype.update = function() {
             particleSystem.recycleParticle(index);
             score.increase();
 
+            /*
             if (xPos < left) {
                 var index = level.yPosToIndex(yPos);
                 leftColors[index] = color;
@@ -62,6 +70,7 @@ Cloud.prototype.update = function() {
                 var index = level.yPosToIndex(yPos);
                 rightColors[index] = color;
             }
+            */
         }
         else {
             vertexBuffer[count * 3 + 0] = xPos;
@@ -75,8 +84,8 @@ Cloud.prototype.update = function() {
         }
     }
 
-    this.mesh.vertexBuffer.setValues();
-    this.mesh.colorBuffer.setValues();
+    this.mesh.vertexBuffer.setValues(null, 0, numberOfParticles * 3);
+    this.mesh.colorBuffer.setValues(null, 0, numberOfParticles * 4);
 };
 
 Cloud.prototype.draw = function() {
@@ -84,3 +93,4 @@ Cloud.prototype.draw = function() {
                              this.particleSystem.particles.length);
 };
 
+module.exports = Cloud;

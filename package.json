@@ -1,0 +1,38 @@
+{
+  "name": "siren-song",
+  "version": "0.2.0",
+  "description": "Infinite game",
+  "main": "js/main.js",
+  "directories": {
+    "example": "examples",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "gulp build",
+    "clean": "gulp clean"
+  },
+  "author": "Joe Turner",
+  "license": "MIT",
+  "homepage": "",
+  "devDependencies": {
+    "browserify": "^10.0.0",
+    "del": "^1.1.1",
+    "gulp": "^3.8.11",
+    "gulp-rename": "^1.2.2",
+    "gulp-uglify": "^1.2.0",
+    "gulp-util": "^3.0.4",
+    "vinyl-buffer": "^1.0.0",
+    "vinyl-source-stream": "^1.1.0",
+    "watchify": "^3.2.1"
+  },
+  "dependencies": {
+    "components-webfontloader": "^1.5.2",
+    "double-ended-queue": "^2.1.0-0",
+    "gl-matrix": "^2.2.1",
+    "keystate": "0.0.1",
+    "noisejs": "^2.1.0",
+    "webglet": "^0.3.0-pre"
+  },
+  "optionalDependencies": {}
+}

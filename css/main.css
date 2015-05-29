@@ -1,3 +1,23 @@
+html, body, div#container {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: #1E2835;
+    color: #F8F8F8;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    font-family: 'Orbitron', sans-serif;
+    min-width: 320px;
+}
+
+
 html, body {
     height: 100%;
 }
@@ -7,80 +27,10 @@ body {
     color: #FFF;
 }
 
-a {
-    text-decoration: none;
-    color: #FFF;
-}
-
-canvas {
-    margin: 0 auto;
-    font-family: 'Orbitron', sans-serif;
-}
-
-canvas#webglet-app {
-    margin-top: 40px;
-    border: 1px solid #FFF;
-}
-
-h1 {
-    font-size: 48px;
-}
-
-div#wrapper {
-    min-height: 100%;
-    height: auto !important;
-    height: 100%;
-    margin: 0 auto -21px;
-}
-
-div#footer, div#push {
-    clear: both;
-    height: 20px;
-}
-
-div#footer {
-    background-color: #555753;
-    position: relative;
-    border-top: 1px solid #EEEEEE;
-    padding: 0 10px;
-    text-align: right;
-}
-
-div#header {
-    width: 800px;
-    margin: 0 auto;
-    text-align: center;
-    font-family: 'Orbitron', sans-serif;
-    padding-top: 10px;
-}
-
-div#main {
-    width: 800px;
-    margin: 0 auto;
-}
-
-div#ui {
+canvas#scores{
     position: absolute;
     z-index: 1;
-}
-
-div#footer .amp {
-    color: #D3D7CF;
-}
-
-div#about, div#tips {
-    position: absolute;
-    right: 0;
-    bottom: 20px;
-    width: 300px;
-    background-color: #333;
-    padding: 10px;
-    border: 1px solid #FFF;
-    border-right: 0;
-    text-align: left;
-}
-
-.center {
-    text-align: center;
+    top: 0;
+    left: 0;
 }
 
