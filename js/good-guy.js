@@ -1,6 +1,6 @@
 var webglet = require('webglet');
 var glMatrix = require('gl-matrix');
-var vec3 = glMatrix.vec3;
+var vec2 = glMatrix.vec2;
 var quat = glMatrix.quat;
 
 var AudioReactiveMesh = require('./audio-reactive-mesh');
@@ -13,10 +13,8 @@ var GoodGuy = function(app) {
     this.radius = 0.02;
     this.springOut = null;
 
-    var sides = this.app.level.getSides(0);
-    var middle = (sides[0] + sides[1]) / 2;
     this.particle = this.app.particleSystem.createParticle();
-    this.particle.position[0] = middle;
+    this.center();
 
     this.transformation = new webglet.Transformation();
     this.angle = 0;
@@ -47,34 +45,51 @@ GoodGuy.prototype.initColors = function() {
     this.mesh.colorBuffer.setValues();
 };
 
+GoodGuy.prototype.center = function() {
+    var pool = this.app.vec2Pool;
+    var sides = pool.create();
+    this.app.level.getSides(0, sides);
+    this.particle.position[0] = (sides[0] + sides[1]) / 2;
+    pool.recycle(sides);
+};
 
 GoodGuy.prototype.update = function() {
-    var sides = this.app.level.getSides(0);
+    var pool = this.app.vec2Pool;
+    var sides = pool.create();
+    this.app.level.getSides(0, sides);
 
-    if (this.particle.position[0] < -this.app.width / 2 ||
-        this.particle.position[0] > this.app.width / 2 ||
-        this.particle.position[1] < -this.app.height / 2 ||
-        this.particle.position[1] > this.app.height / 2) {
+    var width = this.app.width();
+    var height = this.app.height();
+    var halfWidth = width / 2;
+    var halfHeight = height / 2;
+    var left = sides[0];
+    var right = sides[1];
+    pool.recycle(sides);
+
+    var xPos = this.particle.position[0];
+    var yPos = this.particle.position[1];
+
+
+    if (xPos < -halfWidth || xPos > halfWidth ||
+        yPos < -halfHeight || yPos > halfHeight) {
         this.app.shouldUpdate = false;
-        this.particle.position[0] = (sides[0] + sides[1]) / 2;
+        this.particle.position[0] = (left + right) / 2;
         this.particle.velocity[0] = 0;
         this.app.ui.startCountdown();
+        return;
     }
 
-    if (this.particle.position[0] < sides[0] ||
-        this.particle.position[0] > sides[1]) {
+    if (xPos < left || xPos > right) {
         this.app.score.decrease();
-
     }
 
     this.handleSirenCollisions();
 
-//    var channel = this.app.crusher.outputs[0].buffer.channels[0];
-//    this.updateVertices(channel, 2);
-
     this.angle += 0.2;
-    quat.set(this.transformation.rotation, Math.cos(this.angle / 2), Math.sin(this.angle / 2), 0, 0);
-    vec3.copy(this.transformation.position, this.particle.position);
+    var halfAngle = this.angle / 2;
+    quat.set(this.transformation.rotation,
+             Math.cos(halfAngle), Math.sin(halfAngle), 0, 0);
+    vec2.copy(this.transformation.position, this.particle.position);
 };
 
 GoodGuy.prototype.draw = function() {
@@ -91,18 +106,20 @@ GoodGuy.prototype.handleSirenCollisions = function() {
     var sirens = this.app.sirens;
     var numberOfSirens = sirens.length;
     var position = this.particle.position;
+    var pool = this.app.vec2Pool;
+    var diff = pool.create();
     for (var i = 0; i < numberOfSirens; i++) {
         var siren = sirens[i];
         if (!siren.connected) {
-            var diff = vec3.create();
-            vec3.subtract(diff, position, siren.particle.position);
-            var distance = vec3.length(diff);
+            vec2.subtract(diff, position, siren.particle.position);
+            var distance = vec2.length(diff);
             if (distance < this.radius + siren.radius) {
                 siren.attach();
                 this.app.multiplier += 1;
             }
         }
     }
+    pool.recycle(diff);
 };
 
 module.exports = GoodGuy;

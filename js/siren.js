@@ -1,6 +1,6 @@
 var webglet = require('webglet');
 var glMatrix = require('gl-matrix');
-var vec3 = glMatrix.vec3;
+var vec2 = glMatrix.vec2;
 
 require('./math');
 var AudioReactiveMesh = require('./audio-reactive-mesh');
@@ -20,9 +20,12 @@ var Siren = function(app) {
     this.springOut = null;
 
     var yPos = app.height() / 2 - 0.0001;
-    var sides = this.app.level.getSides(yPos);
+    var pool = this.app.vec2Pool;
+    var sides = pool.create(sides);
+    this.app.level.getSides(yPos, sides);
     var xPos = Math.randomBetween(sides[0] + this.radius * 2,
                                   sides[1] - this.radius * 2);
+    pool.recycle(sides);
     this.particle = this.app.particleSystem.createParticle();
     this.particle.position[0] = xPos;
     this.particle.position[1] = yPos;
@@ -71,20 +74,30 @@ Siren.prototype.removeAttraction = function() {
 
 Siren.prototype.update = function() {
     var position = this.particle.position;
-    if (position[1] < -this.app.height() / 2 ||
-        position[1] > this.app.height() / 2) {
+    var xPos = position[0];
+    var yPos = position[1];
+
+    var height = this.app.height();
+    var halfHeight = height / 2;
+    if (yPos < -halfHeight ||
+        yPos > halfHeight) {
         this.remove();
         return;
     }
 
-    var sides = this.app.level.getSides(position[1]);
-    if (position[0] < sides[0] ||
-        position[0] > sides[1]) {
+    var pool = this.app.vec2Pool;
+    var sides = pool.create();
+    this.app.level.getSides(yPos, sides);
+    var left = sides[0];
+    var right = sides[1];
+    pool.recycle(sides);
+
+    if (xPos < left || xPos > right) {
         this.remove();
         return;
     }
 
-    vec3.copy(this.transformation.position, this.particle.position);
+    vec2.copy(this.transformation.position, this.particle.position);
     if (this.connected) {
         var channel = this.audio.getOutputChannel();
         this.updateVertices(channel, 3);

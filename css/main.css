@@ -4,9 +4,11 @@ html, body, div#container {
     padding: 0;
 }
 
-body {
-    background-color: #1E2835;
-    color: #F8F8F8;
+div#content {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    position: relative;
 }
 
 canvas {
@@ -17,15 +19,10 @@ canvas {
     min-width: 320px;
 }
 
-
-html, body {
-    height: 100%;
-}
-
-body {
+canvas#game {
     background-color: #000;
-    color: #FFF;
 }
+
 
 canvas#scores{
     position: absolute;

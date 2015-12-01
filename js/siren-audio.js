@@ -31,7 +31,7 @@ var SirenAudio = function(app) {
 
     this.env = this.context.createGain();
     this.osc.connect(this.env);
-    this.env.connect(this.app.dcFilter);
+    this.env.connect(this.app.input);
 
     this.analyser = this.context.createAnalyser();
     this.analyser.fftSize = 256;
@@ -85,11 +85,14 @@ SirenAudio.prototype.nextNoteTime = function() {
 
 SirenAudio.prototype.stop = function() {
     this.env.gain.linearRampToValueAtTime(0, this.context.currentTime + 1);
-    setTimeout(function() {
-        this.env.disconnect(this.app.dcFilter);
-        this.done = true;
-    }.bind(this), 2000);
+    setTimeout(this.disconnect.bind(this), 2000);
 };
+
+SirenAudio.prototype.disconnect = function() {
+    this.env.disconnect(this.app.input);
+    this.done = true;
+};
+
 
 SirenAudio.prototype.getOutputChannel = function() {
     this.analyser.getFloatTimeDomainData(this.outputChannel);

@@ -1,3 +1,5 @@
+var settings = require('./settings');
+
 var UI = function(app) {
     this.app = app;
 
@@ -24,40 +26,68 @@ var UI = function(app) {
 };
 
 UI.prototype.draw = function() {
-    if (this.canvas.clientWidth != this.canvas.width ||
-        this.canvas.clientHeight != this.canvas.height) {
-        this.canvas.width = this.canvas.clientWidth;
-        this.canvas.height = this.canvas.clientHeight;
-    }
     var score = this.app.score.score;
     var highScore = this.app.score.highScore;
 
     var needDrawScore = (score != this.lastScore);
     var needDrawHighScore = (highScore != this.lastHighScore);
 
-    if (needDrawScore ||
-        needDrawHighScore ||
-        this.needDrawFlash) {
-        if (this.context.font != '36px \'Orbitron\', sans-serif') {
-            this.context.font = '36px \'Orbitron\', sans-serif';
-        }
+    if (this.canvas.clientWidth != this.canvas.width ||
+        this.canvas.clientHeight != this.canvas.height) {
+        this.canvas.width = this.canvas.clientWidth;
+        this.canvas.height = this.canvas.clientHeight;
+        needDrawScore = true;
+        needDrawHighScore = true;
+
+        this.context.shadowColor = '#000000';
+        this.context.shadowOffsetX = 3;
+        this.context.shadowOffsetY = 3;
         this.context.textBaseline = 'middle';
     }
 
+    var width = this.canvas.width;
+    var halfWidth = width / 2;
+    var thirdWidth = width / 3;
+    var height = this.canvas.height;
+    var halfHeight = height / 2;
+    // Clear a little extra on all sides
+    var extraClear = 4;
+
+    var scoreSize;
+    if (this.canvas.width > settings.scoreFontBreakWidth) {
+        scoreSize = settings.scoreFontSizeLarge;
+    }
+    else {
+        scoreSize = settings.scoreFontSizeSmall;
+    }
+    var halfScoreSize = scoreSize / 2;
+
+    var countdownSize = settings.countdownFontSize;
+    var halfCountdownSize = countdownSize / 2;
+
+    if (needDrawScore || needDrawHighScore || this.needDrawFlash) {
+        var fontString = scoreSize + 'px \'Orbitron\', sans-serif';
+        if (this.context.font != fontString) {
+            this.context.font = fontString;
+        }
+    }
+
     if (needDrawScore) {
-        this.context.clearRect(0, 0, this.canvas.width / 3, 40);
+        this.context.clearRect(0, halfScoreSize - extraClear,
+                               thirdWidth, scoreSize + 2 * extraClear);
         this.context.textAlign = 'left';
         this.context.fillStyle = '#00FF00';
-        this.context.fillText(score.toString(), 0, 18);
+        this.context.fillText(score.toString(),
+                              halfScoreSize, scoreSize);
     }
 
     if (needDrawHighScore) {
-        this.context.clearRect(2 * this.canvas.width / 3, 0,
-                               this.canvas.width / 3, 40);
+        this.context.clearRect(2 * thirdWidth, halfScoreSize - extraClear,
+                               thirdWidth, scoreSize + 2 * extraClear);
         this.context.textAlign = 'right';
         this.context.fillStyle = '#FF0000';
         this.context.fillText(highScore.toString(),
-                              this.canvas.width, 18);
+                              width - halfScoreSize, scoreSize);
     }
 
 
@@ -67,42 +97,38 @@ UI.prototype.draw = function() {
     }
 
     if (this.needDrawFlash) {
-        this.context.fillText('High Score', this.canvas.width / 2, 18);
+        this.context.fillText('High Score', halfWidth, scoreSize);
         this.needDrawFlash = false;
     }
 
     if (this.needClearFlash) {
-        this.context.clearRect(this.canvas.width / 3, 0,
-                               this.canvas.width / 3, 40);
+        this.context.clearRect(thirdWidth, halfScoreSize - extraClear,
+                               thirdWidth, scoreSize + 2 * extraClear);
         this.needClearFlash = false;
     }
 
     if (this.needDrawCountdown ||
         this.needClearCountdown) {
-        this.context.clearRect(this.canvas.width / 2 - 36,
-                               this.canvas.height / 2, 72, 72);
+        this.context.clearRect(halfWidth - halfCountdownSize - extraClear,
+                               halfHeight - halfCountdownSize - extraClear,
+                               countdownSize + 2 * extraClear,
+                               countdownSize + 2 * extraClear);
         this.needClearCountdown = false;
     }
 
 
     if (this.needDrawCountdown) {
-        this.context.textBaseline = 'middle';
-        if (this.context.font != '72px \'Orbitron\', sans-serif') {
-            this.context.font = '72px \'Orbitron\', sans-serif';
+        var fontString = countdownSize + 'px \'Orbitron\', sans-serif';
+        if (this.context.font != fontString) {
+            this.context.font = fontString;
         }
         this.context.fillText(this.countdown.toString(),
-                              this.canvas.width / 2,
-                              this.canvas.height / 2 + 36);
+                              halfWidth, halfHeight);
         this.needDrawCountdown = false;
     }
 
     this.lastScore = score;
     this.lastHighScore = highScore;
-};
-
-UI.prototype.clearCountdown = function() {
-    this.context.clearRect(this.canvas.width / 2 - 36,
-                           this.canvas.height / 2, 72, 72);
 };
 
 
@@ -142,12 +168,11 @@ UI.prototype.doFlashHighScore = function() {
 };
 
 UI.prototype.startCountdown = function() {
+    this.app.stopUpdates();
     this.countdown = 3;
     this.isCountingDown = true;
     this.countdownInterval = setInterval(this.doCountdown.bind(this), 1000);
     this.needDrawCountdown = true;
-
-    this.app.shouldUpdate = false;
 };
 
 UI.prototype.doCountdown = function() {
@@ -161,7 +186,7 @@ UI.prototype.doCountdown = function() {
         this.needDrawCountdown = false;
         this.needClearCountdown = true;
 
-        this.app.shouldUpdate = true;
+        this.app.startUpdates();
     }
 };
 

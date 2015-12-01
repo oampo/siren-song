@@ -1,4 +1,4 @@
-var vec3 = require('gl-matrix').vec3;
+var vec2 = require('gl-matrix').vec2;
 
 var Integrator = function(s) {
     this.s = s;
@@ -17,18 +17,13 @@ Integrator.prototype.step = function(dt) {
         var velocity = p.velocity;
         var force = p.force;
         var mass = p.mass;
-        /*
-        position[0] += velocity[0] + force[0] * 2.5;
-        position[1] += velocity[1] + force[1] * 2.5;
-        position[2] += velocity[2] + force[2] * 2.5;
-
-        velocity[0] += force[0];
-        velocity[1] += force[1];
-        velocity[2] += force[2];
-
-        */
-        vec3.scaleAndAdd(velocity, velocity, force, dt / mass);
-        vec3.scaleAndAdd(position, position, velocity, dt);
+        // Remove function calls in hot loops
+        //vec2.scaleAndAdd(velocity, velocity, force, dt / mass);
+        //vec2.scaleAndAdd(position, position, velocity, dt);
+        velocity[0] += force[0] * dt / mass;
+        velocity[1] += force[1] * dt / mass;
+        position[0] += velocity[0] * dt;
+        position[1] += velocity[1] * dt;
         p.age += dt;
     }
 };

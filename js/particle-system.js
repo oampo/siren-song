@@ -1,4 +1,4 @@
-var vec3 = require('gl-matrix').vec3;
+var vec2 = require('gl-matrix').vec2;
 
 var Integrator = require('./integrator.js');
 
@@ -38,7 +38,7 @@ ParticleSystem.prototype.clearForces = function() {
     var particles = this.particles;
     var numberOfParticles = particles.length;
     for (var i = 0; i < numberOfParticles; i++) {
-        vec3.set(particles[i].force, 0, 0, 0);
+        vec2.set(particles[i].force, 0, 0);
     }
 };
 

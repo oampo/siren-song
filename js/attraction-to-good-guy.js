@@ -1,5 +1,5 @@
 var glMatrix = require('gl-matrix');
-var vec3 = glMatrix.vec3;
+var vec2 = glMatrix.vec2;
 
 var AttractionToGoodGuy = function(app, a, b, k, distanceMin, distanceMax) {
     this.app = app;
@@ -39,11 +39,11 @@ AttractionToGoodGuy.prototype.apply = function() {
     var distanceMinSquared = this.distanceMinSquared;
     var distanceMaxSquared = this.distanceMaxSquared;
 
-    var pool = this.app.vec3Pool;
+    var pool = this.app.vec2Pool;
 
     var a2b = pool.create();
-    vec3.subtract(a2b, a.position, b.position);
-    var a2bDistance = vec3.length(a2b);
+    vec2.subtract(a2b, a.position, b.position);
+    var a2bDistance = vec2.length(a2b);
     var a2bDistanceSquared = Math.pow(a2bDistance, 2);
 
     if (a2bDistanceSquared < distanceMaxSquared) {
@@ -52,10 +52,10 @@ AttractionToGoodGuy.prototype.apply = function() {
         }
 
         var force = k * a.mass * b.mass / (1 + a2bDistanceSquared);
-        vec3.scale(a2b, a2b, 1 + a2bDistanceSquared);
-        vec3.scale(a2b, a2b, force);
+        vec2.scale(a2b, a2b, 1 + a2bDistanceSquared);
+        vec2.scale(a2b, a2b, force);
 
-        vec3.add(b.force, b.force, a2b);
+        vec2.add(b.force, b.force, a2b);
     }
     pool.recycle(a2b);
 };

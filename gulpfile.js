@@ -28,7 +28,13 @@ gulp.task('clean', function(cb) {
     del([DEST], cb);
 });
 
-gulp.task('build', ['clean'], function() {
+gulp.task('copy', ['clean'], function() {
+    gulp.src('css/**').pipe(gulp.dest(DEST + '/css'));
+    gulp.src('index.html').pipe(gulp.dest(DEST));
+    gulp.src('index.yaml').pipe(gulp.dest(DEST));
+});
+
+gulp.task('build', ['copy'], function() {
     return bundler
         .bundle()
         .on('error', function(error) {
@@ -37,10 +43,10 @@ gulp.task('build', ['clean'], function() {
         })
         .pipe(source(OUTPUT + '.js'))
         .pipe(buffer())
-        .pipe(gulp.dest(DEST))
+        .pipe(gulp.dest(DEST + '/js'))
         .pipe(rename({extname: '.min.js' }))
         .pipe(uglify())
-        .pipe(gulp.dest(DEST));
+        .pipe(gulp.dest(DEST + '/js'));
 });
 
 gulp.task('watch', function(cb) {

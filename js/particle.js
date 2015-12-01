@@ -1,10 +1,10 @@
-var vec3 = require('gl-matrix').vec3;
+var vec2 = require('gl-matrix').vec2;
 
 var Particle = function() {
     this.mass = 1;
-    this.position = vec3.create();
-    this.velocity = vec3.create();
-    this.force = vec3.create();
+    this.position = vec2.create();
+    this.velocity = vec2.create();
+    this.force = vec2.create();
     this.age = 0;
 };
 
@@ -17,9 +17,9 @@ Particle.prototype.toString = function() {
 
 Particle.prototype.reset = function() {
     this.mass = 1;
-    vec3.set(this.position, 0, 0, 0);
-    vec3.set(this.velocity, 0, 0, 0);
-    vec3.set(this.force, 0, 0, 0);
+    vec2.set(this.position, 0, 0);
+    vec2.set(this.velocity, 0, 0);
+    vec2.set(this.force, 0, 0);
     this.age = 0;
 };
 

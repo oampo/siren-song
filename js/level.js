@@ -1,5 +1,6 @@
 var Noise = require('noisejs').Noise;
 var Deque = require('double-ended-queue');
+var vec2 = require('gl-matrix').vec2;
 
 var webglet = require('webglet');
 
@@ -21,13 +22,11 @@ var Level = function(app) {
     this.left = new Deque(this.resolution);
     this.right = new Deque(this.resolution);
 
-    /*
-    this.leftColors = new Array(this.height);
-    this.rightColors = new Array(this.height);
+    this.leftColors = new Array(this.resolution);
+    this.rightColors = new Array(this.resolution);
 
     this.numberOfLeftColors = 0;
     this.numberOfRightColors = 0;
-    */
 
     this.initialOffset = 0.27;
     this.offsetPerPoint = 1 / 400000;
@@ -58,13 +57,11 @@ var Level = function(app) {
     };
 
     for (var i = 0; i < this.resolution; i++) {
-        var yPos = i * this.app.maxHeight() / this.resolution;
+        var yPos = i * this.app.maxHeight() / this.resolution - this.app.maxHeight() / 2;
         this.left.push(this.calculateSide(yPos, this.leftDetails));
         this.right.push(this.calculateSide(yPos, this.rightDetails));
-        /*
         this.leftColors[i] = null;
         this.rightColors[i] = null;
-        */
     }
 
     this.leftMesh = new webglet.Mesh(this.app.maxHeightPx(), gl.LINE_STRIP,
@@ -72,12 +69,10 @@ var Level = function(app) {
     this.rightMesh = new webglet.Mesh(this.app.maxHeightPx(), gl.LINE_STRIP,
                                       gl.STREAM_DRAW, gl.STATIC_DRAW);
 
-    /*
-    this.leftColorMesh = new webglet.Mesh(this.height * 2, gl.LINES, gl.STREAM_DRAW,
-                                  gl.STREAM_DRAW);
-    this.rightColorMesh = new webglet.Mesh(this.height * 2, gl.LINES, gl.STREAM_DRAW,
-                                  gl.STREAM_DRAW);
-    */
+    this.leftColorMesh = new webglet.Mesh(this.app.maxHeightPx() * 2, gl.LINES,                                           gl.STREAM_DRAW, gl.STREAM_DRAW);
+    this.rightColorMesh = new webglet.Mesh(this.app.maxHeightPx() * 2,
+                                           gl.LINES, gl.STREAM_DRAW,
+                                           gl.STREAM_DRAW);
     this.updateModels();
 };
 
@@ -110,13 +105,17 @@ Level.prototype.updateDetails = function() {
 Level.prototype.addToBottom = function(dt) {
     this.offset += settings.velocity * dt;
     this.top -= settings.velocity * dt;
-    while (this.top < this.app.maxHeight() / 2) {
+    while (this.top < -this.app.maxHeight() / 2) {
         this.left.shift();
         this.right.shift();
         this.left.push(this.calculateSide(this.offset + this.top + this.app.maxHeight(),
                                           this.leftDetails));
         this.right.push(this.calculateSide(this.offset + this.top + this.app.maxHeight(),
                                            this.rightDetails));
+        this.leftColors.shift();
+        this.rightColors.shift();
+        this.leftColors.push(null);
+        this.rightColors.push(null);
         this.top += this.app.maxHeight() / this.resolution;
     }
 };
@@ -124,120 +123,124 @@ Level.prototype.addToBottom = function(dt) {
 Level.prototype.updateModels = function() {
     var left = this.left;
     var right = this.right;
-    /*
+
     var leftColors = this.leftColors;
     var rightColors = this.rightColors;
-    */
 
     var leftVertexBuffer = this.leftMesh.vertexBuffer.array;
     var leftColorBuffer = this.leftMesh.colorBuffer.array;
     var rightVertexBuffer = this.rightMesh.vertexBuffer.array;
     var rightColorBuffer = this.rightMesh.colorBuffer.array;
 
-    /*
-    var leftColorVertexBuffer = this.leftColorMesh.vertexBuffer.array;
-    var leftColorColorBuffer = this.leftColorMesh.colorBuffer.array;
-    var rightColorVertexBuffer = this.rightColorMesh.vertexBuffer.array;
-    var rightColorColorBuffer = this.rightColorMesh.colorBuffer.array;
-    */
+    var leftBarVertexBuffer = this.leftColorMesh.vertexBuffer.array;
+    var leftBarColorBuffer = this.leftColorMesh.colorBuffer.array;
+    var rightBarVertexBuffer = this.rightColorMesh.vertexBuffer.array;
+    var rightBarColorBuffer = this.rightColorMesh.colorBuffer.array;
 
-    var leftCount = 0;
-    var rightCount = 0;
+    var leftVertexCount = 0;
+    var leftColorCount = 0;
+    var rightVertexCount = 0;
+    var rightColorCount = 0;
 
+    var leftBarVertexCount = 0;
+    var leftBarColorCount = 0;
+    var rightBarVertexCount = 0;
+    var rightBarColorCount = 0;
+
+    var width = this.app.width();
+    var halfWidth = width / 2;
     var heightPx = this.app.heightPx();
-
     var top = -this.app.height() / 2;
+
+    var pool = this.app.vec2Pool;
+    var sides = pool.create();
+    var colors = Array(2);
     for (var i = 0; i < heightPx; i++) {
         var yPos = top + this.app.pxToLength(i);
-        var sides = this.getSides(yPos);
+        this.getSides(yPos, sides);
 
-        leftVertexBuffer[i * 3 + 0] = sides[0];
-        leftVertexBuffer[i * 3 + 1] = yPos;
-        leftVertexBuffer[i * 3 + 2] = 0;
+        leftVertexBuffer[leftVertexCount++] = sides[0];
+        leftVertexBuffer[leftVertexCount++] = yPos;
+        leftVertexBuffer[leftVertexCount++] = 0;
 
-        rightVertexBuffer[i * 3 + 0] = sides[1];
-        rightVertexBuffer[i * 3 + 1] = yPos;
-        rightVertexBuffer[i * 3 + 2] = 0;
+        rightVertexBuffer[rightVertexCount++] = sides[1];
+        rightVertexBuffer[rightVertexCount++] = yPos;
+        rightVertexBuffer[rightVertexCount++] = 0;
 
-        leftColorBuffer[i * 4 + 0] = 1;
-        leftColorBuffer[i * 4 + 1] = 1;
-        leftColorBuffer[i * 4 + 2] = 1;
-        leftColorBuffer[i * 4 + 3] = 1;
+        leftColorBuffer[leftColorCount++] = 1;
+        leftColorBuffer[leftColorCount++] = 1;
+        leftColorBuffer[leftColorCount++] = 1;
+        leftColorBuffer[leftColorCount++] = 1;
 
-        rightColorBuffer[i * 4 + 0] = 1;
-        rightColorBuffer[i * 4 + 1] = 1;
-        rightColorBuffer[i * 4 + 2] = 1;
-        rightColorBuffer[i * 4 + 3] = 1;
+        rightColorBuffer[rightColorCount++] = 1;
+        rightColorBuffer[rightColorCount++] = 1;
+        rightColorBuffer[rightColorCount++] = 1;
+        rightColorBuffer[rightColorCount++] = 1;
 
-        /*
-        var leftColor = leftColors[readIndex];
-        var rightColor = rightColors[readIndex];
+
+        this.getColors(yPos, colors);
+        var leftColor = colors[0];
+        var rightColor = colors[1];
 
         if (leftColor != null) {
-            leftColorVertexBuffer[leftCount * 6 + 0] = -width / 2;
-            leftColorVertexBuffer[leftCount * 6 + 1] = i - height / 2;
-            leftColorVertexBuffer[leftCount * 6 + 2] = 0;
-            leftColorVertexBuffer[leftCount * 6 + 3] = leftVertex - 1;
-            leftColorVertexBuffer[leftCount * 6 + 4] = i - height / 2;
-            leftColorVertexBuffer[leftCount * 6 + 5] = 0;
+            leftBarVertexBuffer[leftBarVertexCount++] = -halfWidth;
+            leftBarVertexBuffer[leftBarVertexCount++] = yPos;
+            leftBarVertexBuffer[leftBarVertexCount++] = 0;
+            leftBarVertexBuffer[leftBarVertexCount++] = sides[0];
+            leftBarVertexBuffer[leftBarVertexCount++] = yPos;
+            leftBarVertexBuffer[leftBarVertexCount++] = 0;
 
-            leftColorColorBuffer[leftCount * 8 + 0] = leftColor[0];
-            leftColorColorBuffer[leftCount * 8 + 1] = leftColor[1];
-            leftColorColorBuffer[leftCount * 8 + 2] = leftColor[2];
-            leftColorColorBuffer[leftCount * 8 + 3] = leftColor[3];
-            leftColorColorBuffer[leftCount * 8 + 4] = leftColor[0];
-            leftColorColorBuffer[leftCount * 8 + 5] = leftColor[1];
-            leftColorColorBuffer[leftCount * 8 + 6] = leftColor[2];
-            leftColorColorBuffer[leftCount * 8 + 7] = leftColor[3];
-
-            leftCount += 1;
+            leftBarColorBuffer[leftBarColorCount++] = leftColor[0];
+            leftBarColorBuffer[leftBarColorCount++] = leftColor[1];
+            leftBarColorBuffer[leftBarColorCount++] = leftColor[2];
+            leftBarColorBuffer[leftBarColorCount++] = leftColor[3];
+            leftBarColorBuffer[leftBarColorCount++] = leftColor[0];
+            leftBarColorBuffer[leftBarColorCount++] = leftColor[1];
+            leftBarColorBuffer[leftBarColorCount++] = leftColor[2];
+            leftBarColorBuffer[leftBarColorCount++ * 8 + 7] = leftColor[3];
         }
         if (rightColor != null) {
-            rightColorVertexBuffer[rightCount * 6 + 0] = rightVertex + 1;
-            rightColorVertexBuffer[rightCount * 6 + 1] = i - height / 2;
-            rightColorVertexBuffer[rightCount * 6 + 2] = 0;
-            rightColorVertexBuffer[rightCount * 6 + 3] = width / 2;
-            rightColorVertexBuffer[rightCount * 6 + 4] = i - height / 2;
-            rightColorVertexBuffer[rightCount * 6 + 5] = 0;
+            rightBarVertexBuffer[rightBarVertexCount++] = sides[1];
+            rightBarVertexBuffer[rightBarVertexCount++] = yPos;
+            rightBarVertexBuffer[rightBarVertexCount++] = 0;
+            rightBarVertexBuffer[rightBarVertexCount++] = halfWidth;
+            rightBarVertexBuffer[rightBarVertexCount++] = yPos;
+            rightBarVertexBuffer[rightBarVertexCount++] = 0;
 
-            rightColorColorBuffer[rightCount * 8 + 0] = rightColor[0];
-            rightColorColorBuffer[rightCount * 8 + 1] = rightColor[1];
-            rightColorColorBuffer[rightCount * 8 + 2] = rightColor[2];
-            rightColorColorBuffer[rightCount * 8 + 3] = rightColor[3];
-            rightColorColorBuffer[rightCount * 8 + 4] = rightColor[0];
-            rightColorColorBuffer[rightCount * 8 + 5] = rightColor[1];
-            rightColorColorBuffer[rightCount * 8 + 6] = rightColor[2];
-            rightColorColorBuffer[rightCount * 8 + 7] = rightColor[3];
-
-            rightCount += 1;
+            rightBarColorBuffer[rightBarColorCount++] = rightColor[0];
+            rightBarColorBuffer[rightBarColorCount++] = rightColor[1];
+            rightBarColorBuffer[rightBarColorCount++] = rightColor[2];
+            rightBarColorBuffer[rightBarColorCount++] = rightColor[3];
+            rightBarColorBuffer[rightBarColorCount++] = rightColor[0];
+            rightBarColorBuffer[rightBarColorCount++] = rightColor[1];
+            rightBarColorBuffer[rightBarColorCount++] = rightColor[2];
+            rightBarColorBuffer[rightBarColorCount++] = rightColor[3];
         }
-        */
     }
+    pool.recycle(sides);
 
-    this.leftMesh.vertexBuffer.setValues(null, 0, heightPx * 3);
-    this.leftMesh.colorBuffer.setValues(null, 0, heightPx * 4);
-    this.rightMesh.vertexBuffer.setValues(null, 0, heightPx * 3);
-    this.rightMesh.colorBuffer.setValues(null, 0, heightPx * 4);
-    /*
-    this.leftColorMesh.vertexBuffer.setValues();
-    this.leftColorMesh.colorBuffer.setValues();
-    this.rightColorMesh.vertexBuffer.setValues();
-    this.rightColorMesh.colorBuffer.setValues();
+    this.leftMesh.vertexBuffer.setValues(null, 0, leftVertexCount);
+    this.leftMesh.colorBuffer.setValues(null, 0, leftColorCount);
+    this.rightMesh.vertexBuffer.setValues(null, 0, rightVertexCount);
+    this.rightMesh.colorBuffer.setValues(null, 0, rightColorCount);
 
-    this.numberOfLeftColors = leftCount;
-    this.numberOfRightColors = rightCount;
-    */
+    this.leftColorMesh.vertexBuffer.setValues(null, 0, leftBarVertexCount);
+    this.leftColorMesh.colorBuffer.setValues(null, 0, leftBarColorCount);
+    this.rightColorMesh.vertexBuffer.setValues(null, 0, rightBarVertexCount);
+    this.rightColorMesh.colorBuffer.setValues(null, 0, rightBarColorCount);
+
+    this.numberOfLeftColors = leftBarVertexCount / 6;
+    this.numberOfRightColors = rightBarVertexCount / 6;
 };
 
 Level.prototype.draw = function() {
     this.app.renderer.render(this.leftMesh, 0, this.app.heightPx());
     this.app.renderer.render(this.rightMesh, 0, this.app.heightPx());
-    /*
+
     this.app.renderer.render(this.leftColorMesh, 0,
                              this.numberOfLeftColors * 2);
     this.app.renderer.render(this.rightColorMesh, 0,
                              this.numberOfRightColors * 2);
-    */
 };
 
 Level.prototype.calculateSide = function(yPos, details) {
@@ -254,12 +257,13 @@ Level.prototype.calculateSide = function(yPos, details) {
     return x;
 };
 
-Level.prototype.getSides = function(yPos) {
+Level.prototype.getSides = function(yPos, vec) {
     var yPosAsPercentageOfMaxHeight = yPos / this.app.maxHeight() + 0.5;
     var yIndex = yPosAsPercentageOfMaxHeight * this.resolution;
 
-    var yIndexFract = yIndex % 1;
-    yIndex = yIndex - yIndexFract;
+    var yIndexFract = yIndex;
+    yIndex = Math.floor(yIndex);
+    yIndexFract = yIndexFract - yIndex;
 
     var leftA = this.left.get(yIndex);
     var leftB = this.left.get(yIndex + 1) || leftA;
@@ -268,7 +272,26 @@ Level.prototype.getSides = function(yPos) {
     var rightA = this.right.get(yIndex);
     var rightB = this.right.get(yIndex + 1) || rightA;
     var right = yIndexFract * rightB + (1 - yIndexFract) * rightA;
-    return [left, right];
+    vec2.set(vec, left, right);
+};
+
+Level.prototype.getColors = function(yPos, colors) {
+    var yPosAsPercentageOfMaxHeight = yPos / this.app.maxHeight() + 0.5;
+    var yIndex = Math.floor(yPosAsPercentageOfMaxHeight * this.resolution);
+    colors[0] = this.leftColors[yIndex];
+    colors[1] = this.rightColors[yIndex];
+};
+
+Level.prototype.setLeftColor = function(yPos, color) {
+    var yPosAsPercentageOfMaxHeight = yPos / this.app.maxHeight() + 0.5;
+    var yIndex = Math.floor(yPosAsPercentageOfMaxHeight * this.resolution);
+    this.leftColors[yIndex] = color;
+};
+
+Level.prototype.setRightColor = function(yPos, color) {
+    var yPosAsPercentageOfMaxHeight = yPos / this.app.maxHeight() + 0.5;
+    var yIndex = Math.floor(yPosAsPercentageOfMaxHeight * this.resolution);
+    this.rightColors[yIndex] = color;
 };
 
 module.exports = Level;

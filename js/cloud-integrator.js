@@ -1,4 +1,4 @@
-var vec3 = require('gl-matrix').vec3;
+var vec2 = require('gl-matrix').vec2;
 
 var CloudIntegrator = function(s) {
     this.s = s;
@@ -12,8 +12,10 @@ CloudIntegrator.prototype.step = function(dt) {
         var position = p.position;
         var velocity = p.velocity;
 
-        // Do things the old-fashioned way
-        vec3.scaleAndAdd(position, position, velocity, dt);
+        // Remove hot function call
+        // vec2.scaleAndAdd(position, position, velocity, dt);
+        position[0] += velocity[0] * dt;
+        position[1] += velocity[1] * dt;
         p.age += dt;
     }
 };

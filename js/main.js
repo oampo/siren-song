@@ -41,6 +41,9 @@ WebFont.load({
 var SirenSong = function(options) {
     webglet.App.call(this, options);
 
+    this.canvas.width = this.canvas.clientWidth;
+    this.canvas.height = this.canvas.clientHeight;
+
     if (!gl) {
         // Hide UI
         document.getElementById('ui').style.display = 'none';
@@ -50,22 +53,27 @@ var SirenSong = function(options) {
     this.screenWidth = screen.width;
     this.screenHeight = screen.height;
 
+    this.shouldUpdate = false;
+    this.lastUpdateTime = 0;
+    this.timestep = 1 / 60;
+
     var vertexShader = document.getElementById('basic-vert').innerHTML;
     var fragmentShader = document.getElementById('basic-frag').innerHTML;
     this.renderer = new webglet.BasicRenderer(vertexShader, fragmentShader);
+    gl.clearColor(0, 0, 0, 0);
 
     this.projection = new webglet.MatrixStack();
 
     this.modelview = new webglet.MatrixStack();
 
+    this.vec2Pool = new ObjectPool(Float32Array.bind(null, 2));
+
     this.keyboard = new KeyState();
 
     this.context = new AudioContext();
     this.octaveDistributor = new OctaveDistributor();
-    this.dcFilter = this.context.createBiquadFilter();
-    this.dcFilter.frequency = 20;
-    this.dcFilter.type = 'highpass';
 
+    this.input = this.context.createGain();
     this.delay = this.context.createDelay();
     this.delay.delayTime.value = 4 * 60 / settings.bpm;
     this.feedback = this.context.createGain();
@@ -95,11 +103,11 @@ var SirenSong = function(options) {
     }
     this.bitCrusher.curve = curve;
 
-    this.dcFilter.connect(this.delay);
+    this.input.connect(this.delay);
     this.delay.connect(this.feedback);
     this.feedback.connect(this.delay);
     this.delay.connect(this.delayDirty);
-    this.dcFilter.connect(this.delayClean);
+    this.input.connect(this.delayClean);
     this.delayClean.connect(this.reverb);
     this.delayDirty.connect(this.reverb);
     this.delayClean.connect(this.reverbClean);
@@ -129,10 +137,6 @@ var SirenSong = function(options) {
 
     this.ui = new UI(this);
 
-    this.vec3Pool = new ObjectPool(function(app) {
-        return new Float32Array(3);
-    }, 30);
-
     if (FONT_LOADED) {
         this.start();
     }
@@ -142,13 +146,21 @@ SirenSong.prototype = Object.create(webglet.App.prototype);
 SirenSong.prototype.constructor = SirenSong;
 
 SirenSong.prototype.start = function() {
-    this.time = new Date().getTime();
-    this.update();
-    this.shouldUpdate = false;
+    this.goodGuy.center();
+    this.goodGuy.update();
     this.ui.startCountdown();
 
-    setInterval(this.preUpdate.bind(this), 1000 / 60);
-    this.run();
+    requestAnimationFrame(this.draw.bind(this));
+};
+
+SirenSong.prototype.startUpdates = function() {
+    this.shouldUpdate = true;
+    this.accum = 0;
+    this.lastUpdateTime = Date.now();
+};
+
+SirenSong.prototype.stopUpdates = function() {
+    this.shouldUpdate = false;
 };
 
 SirenSong.prototype.handleKeys = function() {
@@ -170,17 +182,7 @@ SirenSong.prototype.addSirens = function() {
     }
 };
 
-SirenSong.prototype.preUpdate = function() {
-    if (this.shouldUpdate) {
-        this.update();
-    }
-};
-
-SirenSong.prototype.update = function() {
-    var time = new Date().getTime();
-    var dt = (time - this.time) / 1000;
-    this.time = time;
-
+SirenSong.prototype.update = function(dt) {
     this.handleKeys();
     this.particleSystem.tick(dt);
     this.level.update(dt);
@@ -197,14 +199,35 @@ SirenSong.prototype.update = function() {
     this.ui.updateScore();
 };
 
+SirenSong.prototype.runUpdates = function() {
+    if (!this.shouldUpdate) {
+        return;
+    }
+
+    var time = Date.now();
+    var dt = (time - this.lastUpdateTime) / 1000;
+    this.lastUpdateTime = time;
+
+    this.accum += dt;
+
+    while (this.accum >= this.timestep) {
+        this.update(this.timestep);
+        this.accum -= this.timestep;
+    }
+};
+
 SirenSong.prototype.draw = function() {
-    if (this.canvas.clientWidth != this.canvas.width ||
-        this.canvas.clientHeight != this.canvas.height) {
+    if (this.canvas.clientWidth && this.canvas.clientHeight &&
+        (this.canvas.width != this.canvas.clientWidth ||
+        this.canvas.height != this.canvas.clientHeight)) {
         this.canvas.width = this.canvas.clientWidth;
         this.canvas.height = this.canvas.clientHeight;
     }
 
+    this.runUpdates();
+
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+
     mat4.ortho(this.projection.matrix, -0.5, 0.5,
                0.5 * this.canvas.height/ this.canvas.width,
                -0.5 * this.canvas.height / this.canvas.width,
@@ -212,7 +235,6 @@ SirenSong.prototype.draw = function() {
     this.renderer.setUniform('uProjectionMatrix',
                              this.projection.matrix);
 
-    gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     this.renderer.setUniform('uModelviewMatrix',
                              this.modelview.matrix);
@@ -223,12 +245,16 @@ SirenSong.prototype.draw = function() {
     }
     this.goodGuy.draw();
     this.ui.draw();
+    requestAnimationFrame(this.draw.bind(this));
 };
 
 SirenSong.prototype.pxToLength = function(px) {
     return px / this.widthPx();
 };
 
+SirenSong.prototype.lengthToPx = function(length) {
+    return length * this.widthPx();
+};
 
 SirenSong.prototype.width = function() {
     return 1;
@@ -282,6 +308,8 @@ document.addEventListener("DOMContentLoaded", function() {
     var canvas = document.getElementById('game');
     window.app = new SirenSong({canvas: canvas,
                                 contextAttributes: {
-                                    antialias: false
+                                    antialias: false,
+                                    alpha: false,
+                                    depth: false
                                 }});
 });

@@ -1,24 +1,22 @@
 var ParticleSystem = require('./particle-system');
 var Particle = require('./particle');
 
-var RecyclingParticleSystem = function(numberOfParticles) {
+var RecyclingParticleSystem = function() {
     ParticleSystem.call(this);
     this.oldParticles = [];
-    for (var i = 0; i < numberOfParticles; i++) {
-        this.oldParticles.push(new Particle());
-    }
+    this.particles = [];
 };
 RecyclingParticleSystem.prototype = Object.create(ParticleSystem.prototype);
 RecyclingParticleSystem.prototype.constructor = RecyclingParticleSystem;
 
 RecyclingParticleSystem.prototype.createParticle = function() {
+    var particle;
     if (!this.oldParticles.length) {
-        var numberOfParticles = this.particles.length;
-        for (var i = 0; i < numberOfParticles * 3; i++) {
-            this.oldParticles.push(new Particle());
-        }
+        particle = new Particle();
     }
-    var particle = this.oldParticles.pop();
+    else {
+        particle = this.oldParticles.pop();
+    }
     this.particles.push(particle);
     return particle;
 };
@@ -29,30 +27,31 @@ RecyclingParticleSystem.prototype.recycleParticle = function(particle) {
     this.oldParticles.push(particle);
 };
 
+RecyclingParticleSystem.prototype.recycleParticleByIndex = function(index) {
+    var particle = this.removeParticleByIndex(index);
+    particle.reset();
+    this.oldParticles.push(particle);
+};
+
 RecyclingParticleSystem.prototype.removeParticle = function(particle) {
-    var type = typeof particle;
-    if (type == 'number') {
-        return this.particles.splice(particle, 1)[0];
+    var index = this.particles.indexOf(particle);
+    if (index != -1) {
+        return this.particles.splice(index, 1)[0];
     }
-    else if (type == 'object') {
-        var index = this.particles.indexOf(particle);
-        if (index != -1) {
-            return this.particles.splice(index, 1)[0];
-        }
+    return null;
+};
+
+RecyclingParticleSystem.prototype.removeParticleByIndex = function(index) {
+    if (index < this.particles.length) {
+        return this.particles.splice(index, 1)[0];
     }
     return null;
 };
 
 RecyclingParticleSystem.prototype.removeForce = function(force) {
-    var type = typeof force;
-    if (type == 'number') {
-        return this.forces.splice(force, 1)[0];
-    }
-    else if (type == 'object') {
-        var index = this.forces.indexOf(force);
-        if (index != -1) {
-            return this.forces.splice(index, 1)[0];
-        }
+    var index = this.forces.indexOf(force);
+    if (index != -1) {
+        return this.forces.splice(index, 1)[0];
     }
     return null;
 };
