@@ -1,5 +1,3 @@
-var vec2 = require('gl-matrix').vec2;
-
 var Integrator = function(s) {
     this.s = s;
 };

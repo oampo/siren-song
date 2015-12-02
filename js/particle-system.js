@@ -24,9 +24,6 @@ ParticleSystem.prototype.clear = function() {
 };
 
 ParticleSystem.prototype.applyForces = function() {
-    var particles = this.particles;
-    var numberOfParticles = particles.length;
-
     var forces = this.forces;
     var numberOfForces = forces.length;
     for (var i = 0; i < numberOfForces; i++) {

@@ -121,12 +121,6 @@ Level.prototype.addToBottom = function(dt) {
 };
 
 Level.prototype.updateModels = function() {
-    var left = this.left;
-    var right = this.right;
-
-    var leftColors = this.leftColors;
-    var rightColors = this.rightColors;
-
     var leftVertexBuffer = this.leftMesh.vertexBuffer.array;
     var leftColorBuffer = this.leftMesh.colorBuffer.array;
     var rightVertexBuffer = this.rightMesh.vertexBuffer.array;

@@ -17,7 +17,6 @@ var Cloud = function(app) {
 Cloud.prototype.update = function(dt) {
     this.particleSystem.tick(dt);
 
-    var halfMaxHeight = this.app.maxHeight() / 2;
     var halfHeight = this.app.height() / 2;
     var level = this.app.level;
     var score = this.app.score;

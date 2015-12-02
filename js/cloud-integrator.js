@@ -1,5 +1,3 @@
-var vec2 = require('gl-matrix').vec2;
-
 var CloudIntegrator = function(s) {
     this.s = s;
 };
