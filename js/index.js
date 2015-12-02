@@ -1,5 +1,3 @@
-require('../css/main.css');
-
 require('components-webfontloader');
 var webglet = require('webglet');
 var rites = require('rites');

@@ -26,21 +26,9 @@ module.exports = {
     module: {
       loaders: [
         {
-            test: /\.html$/,
-            loader: 'file?name=[name].[ext]'
-        },
-        {
-            test: /\.yaml$/,
-            loader: 'file?name=[name].[ext]'
-        },
-        {
           test: /\.js?$/,
           exclude: /(node_modules)/,
           loader: 'babel'
-        },
-        {
-          test: /\.css?$/,
-          loader: 'style-loader!css-loader'
         }
       ]
     },
