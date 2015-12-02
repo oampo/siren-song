@@ -9,7 +9,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "webpack && webpack --minify"
+    "build": "webpack && webpack --minify && cp index.html build/ && cp index.yaml build/"
   },
   "author": "Joe Turner",
   "license": "MIT",

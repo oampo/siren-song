@@ -13,11 +13,11 @@ if (minify) {
     filename.splice(filename.length - 1, 0, 'min');
     plugins.push(new webpack.optimize.UglifyJsPlugin());
 }
+
+console.log(path.resolve(__dirname, packageData.main));
+
 module.exports = {
-    entry: {
-        javascript: path.resolve(__dirname, packageData.main),
-        html: './index.html'
-    },
+    entry: path.resolve(__dirname, packageData.main),
     output: {
         path: path.resolve(__dirname, 'build'),
         filename: filename.join('.'),
@@ -27,6 +27,10 @@ module.exports = {
       loaders: [
         {
             test: /\.html$/,
+            loader: 'file?name=[name].[ext]'
+        },
+        {
+            test: /\.yaml$/,
             loader: 'file?name=[name].[ext]'
         },
         {
