@@ -1,7 +1,9 @@
+require('../css/main.css');
+
 require('components-webfontloader');
 var webglet = require('webglet');
-var MajorScale = require('audiolet/src/scale/major');
-var KeyState = require('keystate');
+var rites = require('rites');
+var Kybrd = require('kybrd');
 var glMatrix = require('gl-matrix')
 var mat4 = glMatrix.mat4;
 
@@ -68,7 +70,7 @@ var SirenSong = function(options) {
 
     this.vec2Pool = new ObjectPool(Float32Array.bind(null, 2));
 
-    this.keyboard = new KeyState();
+    this.keyboard = new Kybrd();
 
     this.context = new AudioContext();
     this.octaveDistributor = new OctaveDistributor();
@@ -119,7 +121,7 @@ var SirenSong = function(options) {
 
     this.octaveDistributor = new OctaveDistributor();
     this.rootFrequency = 16.352;
-    this.scale = new MajorScale();
+    this.scale = new rites.scale.Major();
 
     this.particleSystem = new RecyclingParticleSystem(30);
 
