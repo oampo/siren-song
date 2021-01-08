@@ -15,6 +15,7 @@ var UI = require('./ui');
 var ObjectPool = require('./object-pool');
 var SpiralSiren = require('./spiral-siren');
 var generate_ir = require('./impulse-response');
+var Touch = require('./touch');
 var settings  = require('./settings');
 
 FONT_LOADED = false;
@@ -69,6 +70,7 @@ var SirenSong = function(options) {
     this.vec2Pool = new ObjectPool(Float32Array.bind(null, 2));
 
     this.keyboard = new Kybrd();
+    this.touch = new Touch();
 
     this.context = new AudioContext();
     this.octaveDistributor = new OctaveDistributor();
@@ -176,6 +178,24 @@ SirenSong.prototype.handleKeys = function() {
     }
 };
 
+SirenSong.prototype.handleTouch = function() {
+    if (!this.touch.isDown) {
+        return;
+    }
+
+    var worldX = (this.touch.screenPosition[0] / window.innerWidth) - 0.5;
+    var goodGuyX = this.goodGuy.particle.position[0];
+    console.log(worldX, goodGuyX);
+    if (worldX < goodGuyX) {
+        var dx = settings.baseTurningSpeed + settings.turningSpeedMultiplier * this.score.score;
+        this.goodGuy.particle.velocity[0] -= dx;
+    }
+    else if (worldX > goodGuyX) {
+        var dx = settings.baseTurningSpeed + settings.turningSpeedMultiplier * this.score.score;
+        this.goodGuy.particle.velocity[0] += dx;
+    }
+};
+
 SirenSong.prototype.addSirens = function() {
     if (Math.random() > 0.98) {
         this.sirens.push(new SpiralSiren(this));
@@ -184,6 +204,7 @@ SirenSong.prototype.addSirens = function() {
 
 SirenSong.prototype.update = function(dt) {
     this.handleKeys();
+    this.handleTouch();
     this.particleSystem.tick(dt);
     this.level.update(dt);
 
