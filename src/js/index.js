@@ -22,7 +22,7 @@ FONT_LOADED = false;
 WINDOW_LOADED = false;
 
 WebFont.load({
-    google: {
+    custom: {
         families: ['Orbitron']
     },
     active: function() {
