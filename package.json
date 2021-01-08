@@ -9,21 +9,19 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "webpack && webpack --minify && cp index.html build/ && cp index.yaml build/ && cp css/main.css build/"
+    "start": "parcel src/index.html",
+    "build": "parcel build src/index.html --out-dir build"
   },
   "author": "Joe Turner",
   "license": "MIT",
   "homepage": "",
   "devDependencies": {
-    "babel-core": "^6.2.1",
-    "babel-loader": "^6.2.0",
-    "babel-preset-es2015": "^6.1.18",
-    "webpack": "^1.12.9"
+    "parcel": "^1.12.4"
   },
   "dependencies": {
     "components-webfontloader": "^1.5.2",
     "double-ended-queue": "^2.1.0-0",
-    "gl-matrix": "^2.2.1",
+    "gl-matrix": "^3.3.0",
     "kybrd": "^0.1.0",
     "noisejs": "^2.1.0",
     "rites": "^0.1.0",

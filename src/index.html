@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+    <link rel="shortcut icon" href="favicon.ico" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="favicon-180.png">
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+    <meta name="theme-color" content="#FF0000" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="stylesheet" href="css/index.css" />
+    <title>Siren Song | Infinite audio-visual game</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this game.</noscript>
+    <canvas id="game"></canvas>
+    <canvas id="scores"></canvas>
+
+    <script id="basic-vert" type="x-shader/x-vertex">
+      attribute vec3 aVertex;
+      attribute vec4 aColor;
+
+      uniform mat4 uModelviewMatrix;
+      uniform mat4 uProjectionMatrix;
+
+      varying vec4 vColor;
+
+      void main(void) {
+          gl_Position = uProjectionMatrix * uModelviewMatrix * vec4(aVertex, 1.0);
+          gl_PointSize = 1.0;
+          vColor = aColor;
+      }
+    </script>
+
+    <script id="basic-frag" type="x-shader/x-fragment">
+      #ifdef GL_ES
+      precision highp float;
+      #endif
+
+      varying vec4 vColor;
+
+      void main(void) {
+          gl_FragColor = vColor;
+      }
+    </script>
+
+    <script src="js/index.js"></script>
+  </body>
+</html>
