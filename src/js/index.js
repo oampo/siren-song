@@ -76,7 +76,7 @@ var SirenSong = function(options) {
     this.octaveDistributor = new OctaveDistributor();
 
     this.input = this.context.createGain();
-    this.delay = this.context.createDelay();
+    this.delay = this.context.createDelay(2);
     this.delay.delayTime.value = 4 * 60 / settings.bpm;
     this.feedback = this.context.createGain();
     this.feedback.gain.value = 0.7;
