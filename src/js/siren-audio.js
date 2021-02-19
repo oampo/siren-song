@@ -95,7 +95,10 @@ SirenAudio.prototype.disconnect = function() {
 
 
 SirenAudio.prototype.getOutputChannel = function() {
-    this.analyser.getFloatTimeDomainData(this.outputChannel);
+    if (this.analyser.getFloatTimeDomainData) {
+        // Safari doesn't support this :(
+        this.analyser.getFloatTimeDomainData(this.outputChannel);
+    }
     return this.outputChannel;
 };
 
