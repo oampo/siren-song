@@ -72,7 +72,7 @@ var SirenSong = function(options) {
     this.keyboard = new Kybrd();
     this.touch = new Touch();
 
-    this.context = new (AudioContext || webkitAudioContext)();
+    this.context = new (window.AudioContext || window.webkitAudioContext)();
     this.octaveDistributor = new OctaveDistributor();
 
     this.input = this.context.createGain();
