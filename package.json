@@ -16,7 +16,7 @@
   "license": "MIT",
   "homepage": "",
   "devDependencies": {
-    "parcel": "^1.12.4"
+    "parcel": "^2.8.2"
   },
   "dependencies": {
     "components-webfontloader": "^1.5.2",
